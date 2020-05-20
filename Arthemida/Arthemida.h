@@ -30,6 +30,15 @@ namespace ART_LIB
 			ART_MEMORY_CHANGED = 8
 		};
 		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
+		typedef void(__stdcall* sUniversallHook)(void* PackedArgs);
+		typedef void(__cdecl* cUniversallHook)(void* PackedArgs);
+		typedef void(__thiscall* tUniversallHook)(void* ECX, void* PackedArgs);
+		enum class CallingConvention
+		{
+			STD_CALL = 1,
+			CDECL_CALL = 2,
+			THIS_CALL = 3
+		};
 		struct ARTEMIS_DATA
 		{
 			PVOID baseAddr;
@@ -44,6 +53,9 @@ namespace ART_LIB
 		struct ArtemisConfig
 		{
 			HANDLE hSelfModule = nullptr;
+			sUniversallHook uniHook_s = nullptr;
+			cUniversallHook uniHook_c = nullptr;
+			tUniversallHook uniHook_t = nullptr;
 			std::multimap<DWORD, std::string> ModuleSnapshot;
 			LPFN_GetMappedFileNameA lpGetMappedFileNameA = nullptr;
 			ArtemisCallback callback = nullptr;
@@ -58,7 +70,7 @@ namespace ART_LIB
 			bool DetectFakeLaunch = false;
 			bool DetectAPC = false;
 			bool DetectReturnAddresses = false;
-			std::vector<PVOID> GameFuncAddrs;
+			std::map<PVOID, CallingConvention> GameFuncAddrs;
 			bool DetectManualMap = false;
 			bool DetectInlineHooks = false;
 			bool DetectMemoryPatch = false;
