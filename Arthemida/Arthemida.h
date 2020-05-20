@@ -70,5 +70,8 @@ namespace ART_LIB
 		static void __stdcall ModuleScanner(ArtemisConfig* cfg);
 		static bool __stdcall InstallApcDispatcher(ArtemisCallback callback);
 		static bool __stdcall DeleteApcDispatcher();
+		static bool __stdcall InstallGameHooks(ArtemisConfig* cfg);
+		static bool __stdcall DeleteGameHooks(ArtemisConfig* cfg);
+		static void __stdcall ArtemisDestructor(ArtemisConfig* cfg);
 	};
 };

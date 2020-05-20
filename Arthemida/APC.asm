@@ -1,3 +1,4 @@
+
 IFNDEF AMD64
 	.686P
     .XMM

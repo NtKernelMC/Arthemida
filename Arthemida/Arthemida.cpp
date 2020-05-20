@@ -9,9 +9,9 @@
 	+ Защита против загрузки прокси-dllок
 	+ Защита от инжекта через глобальные хуки SetWindowsHookEx
 	Второй этап >>>
-	- Отсутствие защиты против DLL инжекта посредством запуска с фейк-лаунчера.
-	- Отсутствие проверки адресов возвратов с важных игровых функций
-	- Отсутствие APC монитора против QueueUserAPC инъекций
+	+ Отсутствие защиты против DLL инжекта посредством запуска с фейк-лаунчера.
+	+ Отсутствие проверки адресов возвратов с важных игровых функций
+	+ APC монитор против QueueUserAPC инъекций
 	Третий этап >>>
 	- Отсутствие сканнера для обнаружения смапленных DLL посредством manual-mapping`a
 	- Отсутствие сканнера хуков в памяти и защиты её целостности
@@ -76,7 +76,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisCallback cal
 {
 	if (flt.installed || callback == nullptr) return false;
 	flt.callback = callback;
-	MH_Initialize();
 	OriginalApcDispatcher = (ApcDispatcherPtr)GetProcAddress(GetModuleHandleA("ntdll.dll"), "KiUserApcDispatcher");
 	if (OriginalApcDispatcher == nullptr) return false;
 	auto MakeForbiddenList = []() -> std::map<PVOID, const char*>
@@ -106,7 +105,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::DeleteApcDispatcher()
 	if (!flt.installed || OriginalApcDispatcher == nullptr) return false;
 	MH_DisableHook(MH_ALL_HOOKS);
 	MH_RemoveHook(OriginalApcDispatcher);
-	MH_Uninitialize();
 	flt.installed = false;
 	return true;
 }
@@ -228,7 +226,28 @@ void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 		Sleep(cfg->ModuleScanDelay);
 	}
 }
+bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
+{
+	if (cfg == nullptr) return false;
+	if (cfg->GameFuncAddrs.empty()) return false;
+	for (const auto& it : cfg->GameFuncAddrs)
+	{
 
+	}
+	return true;
+}
+bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
+{
+	if (cfg == nullptr) return false;
+	return true;
+}
+void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
+{
+	if (cfg == nullptr) return;
+	DeleteApcDispatcher();
+	DeleteGameHooks(cfg);
+	MH_Uninitialize();
+}
 // Инициализация библиотеки
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig *cfg)
 {
@@ -236,6 +255,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	if (cfg->callback == nullptr) return nullptr;
 	if (cfg->DetectReturnAddresses && cfg->GameFuncAddrs.empty()) return nullptr;
 	static ART_LIB::ArtemisLibrary art_lib;
+	MH_Initialize();
 	if (cfg->DetectThreads) // Детект сторонних потоков
 	{
 		if (!cfg->ThreadScanDelay) cfg->ThreadScanDelay = 1000;
@@ -256,6 +276,11 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	{
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::InstallApcDispatcher, cfg->callback);
 		AsyncScanner.detach(); // Создание и запуск асинхронного APC диспетчера
+	}
+	if (cfg->DetectReturnAddresses)
+	{
+		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks, cfg->callback);
+		CreateGameHooks.detach();
 	}
 	return &art_lib;
 }
