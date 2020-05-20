@@ -234,7 +234,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ART_LIB::ArtemisLibrary
 	{
 		if ((DWORD)it.first == 0x0 || (DWORD)it.first >= 0xFFFFFF) continue;
 		//MH_CreateHook(OriginalApcDispatcher, it.first, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)); 
-		//MH_EnableHook(MH_ALL_HOOKS);
+		//MH_EnableHook(MH_ALL_HOOKS); //test
 	}
 	return true;
 }
