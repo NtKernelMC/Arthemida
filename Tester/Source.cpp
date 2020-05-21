@@ -3,7 +3,11 @@
 #include <conio.h>
 #pragma comment(lib, "libMinHook.x86.lib")
 #include "Artemis.h"
+#ifdef _DEBUG
+#pragma comment(lib, "ArtemisLib_d.lib")
+#else
 #pragma comment(lib, "ArtemisLib.lib")
+#endif
 #pragma warning(disable : 4477)
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -11,12 +15,15 @@ using namespace std;
 using namespace ART_LIB;
 void __stdcall ArtemisCallback(ArtemisLibrary::ARTEMIS_DATA* artemis)
 {
-	if (artemis == nullptr) return;
+	if (artemis == nullptr) { printf("Invalid ARTEMIS_DATA in callback"); return; };
 	switch (artemis->type)
 	{
 	case ArtemisLibrary::DetectionType::ART_APC_INJECTION:
 		printf("DETECTED APC! (ARGUMENT: 0x%X | CONTEXT: 0x%X | PROC: %s)\n",
 			get<0>(artemis->ApcInfo), get<1>(artemis->ApcInfo), get<2>(artemis->ApcInfo));
+		break;
+	case ArtemisLibrary::DetectionType::ART_FAKE_LAUNCHER:
+		printf("FAKE LAUNCHER DETECTED!");
 		break;
 	default:
 		printf("Base: 0x%X | Size: %d | R: 0x%X | T: %d | DN: %s | DP: %s\n",
@@ -147,13 +154,19 @@ void ConsoleOutput() {
 	cfg.DetectThreads = true;
 	cfg.DetectModules = true;
 	cfg.DetectAPC = true;
+	cfg.DetectFakeLaunch = true;
 	cfg.ThreadScanDelay = 1000;
 	cfg.ModuleScanDelay = 1000;
 	ArtemisLibrary* art = alInitializeArtemis(&cfg);
+	if (art == nullptr) {
+		printf("Library initialization failed. Press any key to exit.\n");
+		_getch();
+		ExitProcess(EXIT_SUCCESS);
+	}
 
 	printf("Library initialized. Waiting for attacks. Press any key to exit.\n");
 	_getch();
-	return;
+	ExitProcess(EXIT_SUCCESS);
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,

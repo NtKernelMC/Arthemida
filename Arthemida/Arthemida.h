@@ -85,5 +85,6 @@ namespace ART_LIB
 		static bool __stdcall InstallGameHooks(ArtemisConfig* cfg);
 		static bool __stdcall DeleteGameHooks(ArtemisConfig* cfg);
 		static void __stdcall ArtemisDestructor(ArtemisConfig* cfg);
+		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
 	};
 };
