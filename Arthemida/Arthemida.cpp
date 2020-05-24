@@ -288,6 +288,7 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 						ARTEMIS_DATA data;
 						data.type = DetectionType::ART_FAKE_LAUNCHER;
 
+						bool checkPassed = true;
 						if (context.Dr7 != NULL)
 						{
 							DWORD_PTR ctrlAddr = context.Dr2;
@@ -301,11 +302,13 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 									SetThreadContext(pThread, &context);
 									ResumeThread(pThread); CloseHandle(pThread);
 								}
-								else cfg->callback(&data);
+								else checkPassed = false;
 							}
-							else cfg->callback(&data);
+							else checkPassed = false;
 						}
-						else cfg->callback(&data);
+						else checkPassed = false;
+
+						if (!checkPassed) cfg->callback(&data);
 					}
 					else
 					{
