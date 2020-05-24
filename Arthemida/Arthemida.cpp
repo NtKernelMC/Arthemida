@@ -232,7 +232,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ART_LIB::ArtemisLibrary
 	if (cfg->GameFuncAddrs.empty()) return false;
 	for (const auto& it : cfg->GameFuncAddrs)
 	{
-		if ((DWORD)it.first == 0x0 || (DWORD)it.first >= 0xFFFFFF) continue;
+		if ((DWORD)it == 0x0 || (DWORD)it >= 0xFFFFFF) continue;
 		//MH_CreateHook(OriginalApcDispatcher, it.first, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)); 
 		//MH_EnableHook(MH_ALL_HOOKS); //test
 	}
@@ -244,7 +244,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks(ART_LIB::ArtemisLibrary:
 	if (cfg->GameFuncAddrs.empty()) return false;
 	for (const auto& it : cfg->GameFuncAddrs)
 	{
-		if ((DWORD)it.first == 0x0 || (DWORD)it.first >= 0xFFFFFF) continue;
+		if ((DWORD)it == 0x0 || (DWORD)it >= 0xFFFFFF) continue;
 	}
 	return true;
 }
@@ -324,11 +324,11 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
 	if (cfg->DetectReturnAddresses && cfg->GameFuncAddrs.empty()) return nullptr;
-	static ART_LIB::ArtemisLibrary art_lib;
-	MH_Initialize();
-	if (cfg->DetectFakeLaunch) {
+	MH_Initialize(); static ART_LIB::ArtemisLibrary art_lib;
+	if (cfg->DetectFakeLaunch) 
+	{
 		std::thread WaitForCheckLauncher(ART_LIB::ArtemisLibrary::CheckLauncher, cfg);
-		WaitForCheckLauncher.join();
+		WaitForCheckLauncher.detach();
 	}
 	if (cfg->DetectThreads) // Детект сторонних потоков
 	{
