@@ -232,13 +232,16 @@ namespace SafeLaunch
 			BOOL rslt = CreateSafeProcess(lpApplicationName, lpCommandLine,
 				lpProcessAttributes, lpThreadAttributes, bInheritHandles,
 				CREATE_SUSPENDED, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
+			printf("lpProcessInformation:\ndwProcessId=%d\ndwThreadId=%d\nhProcess valid=%d\nhThread valid=%d\n", lpProcessInformation->dwProcessId, lpProcessInformation->dwThreadId, lpProcessInformation->hProcess?0:1, lpProcessInformation->hThread ? 0 : 1);
 			if (lpProcessInformation->hProcess == NULL || rslt == NULL) return NULL;
 			PVOID ctrlByte = VirtualAllocEx(lpProcessInformation->hProcess, 0,
 				0x1, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE); 
+			if (!ctrlByte) printf("Error code: %d", GetLastError());
 			BYTE nop[] = { 0x90 };
-			WriteProcessMemory(lpProcessInformation->hProcess, ctrlByte, nop, 0x1, NULL);
-			
-			CONTEXT context = { 0 };
+			HRESULT wrres = WriteProcessMemory(lpProcessInformation->hProcess, ctrlByte, nop, 0x1, NULL);
+			if (!wrres) printf("Error code: %d", GetLastError());
+
+			/*CONTEXT context = { 0 };
 			context.ContextFlags = CONTEXT_ALL;
 			GetThreadContext(lpProcessInformation->hThread, &context);
 			auto index = HWBP::GetFreeIndex(context.Dr7);
@@ -246,7 +249,7 @@ namespace SafeLaunch
 			context.Dr7 |= 1 << (2 * index) | 0x100;
 			*((DWORD_PTR*)&context.Dr2 + index) = (DWORD_PTR)ctrlByte;
 			SetThreadContext(lpProcessInformation->hThread, &context);
-			ResumeThread(lpProcessInformation->hThread);
+			ResumeThread(lpProcessInformation->hThread);*/
 			
 			DWORD_PTR ZwAddr = (DWORD_PTR)GetProcAddress(GetModuleHandleA("ntdll.dll"), "ZwCreateUserProcess");
 			HWBP::DeleteHWBP(ZwAddr); 
