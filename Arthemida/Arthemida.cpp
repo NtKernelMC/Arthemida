@@ -226,33 +226,20 @@ void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 		Sleep(cfg->ModuleScanDelay);
 	}
 }
-bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
+bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks()
 {
-	if (cfg == nullptr) return false;
-	if (cfg->GameFuncAddrs.empty()) return false;
-	for (const auto& it : cfg->GameFuncAddrs)
-	{
-		if ((DWORD)it == 0x0 || (DWORD)it >= 0xFFFFFF) continue;
-		//MH_CreateHook(OriginalApcDispatcher, it.first, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)); 
-		//MH_EnableHook(MH_ALL_HOOKS); //test
-	}
+	//MH_CreateHook(OriginalApcDispatcher, it.first, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)); 
+	//MH_EnableHook(MH_ALL_HOOKS); //test
 	return true;
 }
-bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
+bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 {
-	if (cfg == nullptr) return false;
-	if (cfg->GameFuncAddrs.empty()) return false;
-	for (const auto& it : cfg->GameFuncAddrs)
-	{
-		if ((DWORD)it == 0x0 || (DWORD)it >= 0xFFFFFF) continue;
-	}
 	return true;
 }
-void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
+void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor()
 {
-	if (cfg == nullptr) return;
 	DeleteApcDispatcher();
-	DeleteGameHooks(cfg);
+	DeleteGameHooks();
 	MH_Uninitialize();
 }
 void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
@@ -326,7 +313,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 {
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
-	if (cfg->DetectReturnAddresses && cfg->GameFuncAddrs.empty()) return nullptr;
+	if (cfg->DetectReturnAddresses) return nullptr;
 	MH_Initialize(); static ART_LIB::ArtemisLibrary art_lib;
 	if (cfg->DetectFakeLaunch) 
 	{
@@ -356,7 +343,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	}
 	if (cfg->DetectReturnAddresses)
 	{
-		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks, cfg);
+		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks);
 		CreateGameHooks.detach();
 	}
 	return &art_lib;
