@@ -242,6 +242,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor()
 	DeleteGameHooks();
 	MH_Uninitialize();
 }
+#include <conio.h>
 void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
 {
 	THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);
@@ -270,10 +271,15 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 						((DWORD_PTR)GetModuleHandleA(NULL) + mbi.RegionSize))
 					{
 						context.ContextFlags = CONTEXT_ALL;
-						GetThreadContext(pThread, &context);
-						
+						if (!GetThreadContext(pThread, &context)) printf("GetThreadContext failed. Error code: %d\n", GetLastError());
+						else printf("GetThreadContext succeeded.\n");
+
 						ARTEMIS_DATA data;
 						data.type = DetectionType::ART_FAKE_LAUNCHER;
+
+						printf("Dr7: 0x%08x\n", context.Dr7);
+						printf("Dr2: 0x%08x\nWaiting for your check, press any key to continue.\n", context.Dr2);
+						_getch();
 
 						bool checkPassed = true;
 						if (context.Dr7 != NULL)
