@@ -12,10 +12,11 @@
 #include <algorithm>
 #include "Utils.h"
 #include "..\MinHook\include\MinHook.h"
+#include "GameHooks.h"
 
 namespace ART_LIB
 {
-	class ArtemisLibrary
+	class ArtemisLibrary : public GameHooks
 	{
 	public:
 		enum class DetectionType

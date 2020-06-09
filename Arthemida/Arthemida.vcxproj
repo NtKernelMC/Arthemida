@@ -173,10 +173,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Arthemida.cpp" />
+    <ClCompile Include="GameHooks.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Arthemida.h" />
     <ClInclude Include="CRC32.h" />
+    <ClInclude Include="GameHooks.h" />
     <ClInclude Include="MinHook.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
