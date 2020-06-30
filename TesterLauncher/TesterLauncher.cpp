@@ -15,7 +15,7 @@ int __cdecl main()
 	STARTUPINFO info = { sizeof(info) };
 	PROCESS_INFORMATION processInfo;
 	if (procGate.SafeProcess<const wchar_t*, LPSTARTUPINFOW>
-		(L"C:\\Users\\dutchman101\\source\\repos\\NtKernelMC\\Athemida\\Build\\Win32\\Tester\\Tester.exe", L"", NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo))
+		(L"Tester.exe", L"", NULL, NULL, TRUE, 0, NULL, NULL, &info, &processInfo))
 	{
 		printf("Process created. Press any key to exit launcher.\n");
 	}

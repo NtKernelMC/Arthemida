@@ -9,13 +9,13 @@
 	+ Защита против загрузки прокси-dllок
 	+ Защита от инжекта через глобальные хуки SetWindowsHookEx
 	Второй этап >>>
-	+ Отсутствие защиты против DLL инжекта посредством запуска с фейк-лаунчера.
-	+ Отсутствие проверки адресов возвратов с важных игровых функций
+	- Отсутствие защиты против DLL инжекта посредством запуска с фейк-лаунчера.
+	- Отсутствие сканнера для обнаружения смапленных DLL посредством manual-mapping`a
 	+ APC монитор против QueueUserAPC инъекций
 	Третий этап >>>
-	- Отсутствие сканнера для обнаружения смапленных DLL посредством manual-mapping`a
+	- Отсутствие проверки адресов возвратов с важных игровых функций
 	- Отсутствие сканнера хуков в памяти и защиты её целостности
-	- Навешивание виртуализации протектора на юзермодный модуль античита (VM Protect 3.4.0)
+	- Сигнатурный сканнер модулей в PEB
 */
 #ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
@@ -223,7 +223,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 				}
 			}
 		}
-		Sleep(cfg->ModuleScanDelay);
+		Sleep(cfg->MemoryScanDelay);
 	}
 }
 bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks()
@@ -235,6 +235,75 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks()
 bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 {
 	return true;
+}
+void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
+{
+	if (cfg == nullptr) return;
+	while (true)
+	{
+		auto FindSequence = [](DWORD_PTR z) -> bool
+		{
+			bool complete_sequence = false;
+			__try
+			{
+				for (DWORD x = 0; x < (10 * 6); x += 0x6)
+				{
+					if (*(BYTE*)(z + x) == 0xFF && *(BYTE*)(x + z + 0x1) == 0x25)
+					{
+						complete_sequence = true;
+					}
+					else complete_sequence = false;
+				}
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER) {};
+			return complete_sequence;
+		};
+		auto WatchMemoryAllocations = [&, cfg]
+		(const void* ptr, size_t length, MEMORY_BASIC_INFORMATION* info, int size)
+		{
+			if (ptr == nullptr || info == nullptr) return;
+			const void* end = (const void*)((const char*)ptr + length);
+			DWORD mask = (PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_READ);
+			while (ptr < end && VirtualQuery(ptr, &info[0], sizeof(*info)) == sizeof(*info))
+			{
+				MEMORY_BASIC_INFORMATION* i = &info[0];
+				if ((i->State != MEM_FREE && i->State != MEM_RELEASE) && i->Type & (MEM_IMAGE | MEM_PRIVATE) && i->Protect & mask)
+				{
+					bool complete_sequence = false;
+					if (i->RegionSize > 0x1000 && i->RegionSize != 0x7D000 && i->RegionSize != 0xF000)
+					{
+						for (DWORD_PTR z = (DWORD_PTR)ptr; z < ((DWORD_PTR)ptr + i->RegionSize); z++)
+						{
+							complete_sequence = FindSequence(z);
+							if (complete_sequence)
+							{
+								if (!IsMemoryInModuledRange(i->BaseAddress))
+								{
+									typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
+									LPFN_GetMappedFileNameA g_GetMappedFileNameA = nullptr; HMODULE hPsapi = LoadLibraryA("psapi.dll");
+									g_GetMappedFileNameA = (LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA");
+									char MappedName[256]; memset(MappedName, 0, sizeof(MappedName));
+									g_GetMappedFileNameA(GetCurrentProcess(), i->BaseAddress, MappedName, sizeof(MappedName));
+									if (strlen(MappedName) < 4 && !IsVecContain(cfg->ExcludedImages, i->BaseAddress))
+									{
+										ARTEMIS_DATA data; data.baseAddr = i->BaseAddress;
+										data.MemoryRights = i->Protect; data.regionSize = i->RegionSize;
+										data.dllName = "unknown"; data.dllPath = "unknown";
+										data.type = DetectionType::ART_MANUAL_MAP;
+										cfg->callback(&data); cfg->ExcludedImages.push_back(i->BaseAddress);
+									}
+								}
+							}
+						}
+					}
+				}
+				ptr = (const void*)((const char*)(i->BaseAddress) + i->RegionSize);
+			}
+		};
+		MEMORY_BASIC_INFORMATION mbi = { 0 };
+		WatchMemoryAllocations(START_ADDRESS, END_ADDRESS, &mbi, sizeof(MEMORY_BASIC_INFORMATION));
+		Sleep(cfg->MemoryScanDelay);
+	}
 }
 void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor()
 {
@@ -276,9 +345,9 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 
 						ARTEMIS_DATA data;
 						data.type = DetectionType::ART_FAKE_LAUNCHER;
-
-						printf("Dr7: 0x%08x\n", context.Dr7);
-						printf("Dr2: 0x%08x\nWaiting for your check, press any key to continue.\n", context.Dr2);
+						printf("Current Thread ID: 0x%X\n", th32.th32ThreadID);
+						printf("Dr7: 0x%X\n", context.Dr7);
+						printf("Dr2: 0x%X\nWaiting for your check, press any key to continue.\n", context.Dr2);
 						_getch();
 
 						bool checkPassed = true;
@@ -351,6 +420,12 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	{
 		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks);
 		CreateGameHooks.detach();
+	}
+	if (cfg->DetectManualMap)
+	{
+		if (!cfg->MemoryScanDelay) cfg->MemoryScanDelay = 1000;
+		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
+		MmapThread.detach();
 	}
 	return &art_lib;
 }

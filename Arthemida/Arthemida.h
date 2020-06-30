@@ -13,7 +13,13 @@
 #include "Utils.h"
 #include "..\MinHook\include\MinHook.h"
 #include "GameHooks.h"
-
+#ifdef _WIN64
+#define START_ADDRESS (PVOID)0x00000000010000
+#define END_ADDRESS (0x00007FF8F2580000 - 0x00000000010000)
+#else
+#define START_ADDRESS (PVOID)0x10000
+#define END_ADDRESS (0x7FFF0000 - 0x10000)
+#endif
 namespace ART_LIB
 {
 	class ArtemisLibrary : public GameHooks
@@ -54,8 +60,10 @@ namespace ART_LIB
 			volatile bool ModuleScanner = false;
 			DWORD ThreadScanDelay = 0x0;
 			std::vector<PVOID> ExcludedModules;
+			std::vector<PVOID> ExcludedImages;
 			bool DetectModules = false;
 			DWORD ModuleScanDelay = 0x0;
+			DWORD MemoryScanDelay = 0x0;
 			bool DetectFakeLaunch = false;
 			bool DetectAPC = false;
 			bool DetectReturnAddresses = false;
@@ -70,6 +78,7 @@ namespace ART_LIB
 		static void __stdcall ModuleScanner(ArtemisConfig* cfg);
 		static bool __stdcall InstallApcDispatcher(ArtemisCallback callback);
 		static bool __stdcall DeleteApcDispatcher();
+		static void __stdcall MemoryScanner(ArtemisConfig* cfg);
 		static bool __stdcall InstallGameHooks(void);
 		static bool __stdcall DeleteGameHooks(void);
 		static void __stdcall ArtemisDestructor(void);
