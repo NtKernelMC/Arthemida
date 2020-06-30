@@ -10,7 +10,7 @@
 	+ Защита от инжекта через глобальные хуки SetWindowsHookEx
 	Второй этап >>>
 	- Отсутствие защиты против DLL инжекта посредством запуска с фейк-лаунчера.
-	- Отсутствие сканнера для обнаружения смапленных DLL посредством manual-mapping`a
+	+ Сканнер памяти для обнаружения смапленных DLL 
 	+ APC монитор против QueueUserAPC инъекций
 	Третий этап >>>
 	- Отсутствие проверки адресов возвратов с важных игровых функций
@@ -306,7 +306,6 @@ void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor()
 	DeleteGameHooks();
 	MH_Uninitialize();
 }
-#include <conio.h>
 void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
 {
 	THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);

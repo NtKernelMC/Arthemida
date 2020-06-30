@@ -9,6 +9,7 @@
 #include <winternl.h>
 #include <TlHelp32.h>
 #include <Psapi.h>
+#include <conio.h>
 #include <algorithm>
 #include "Utils.h"
 #include "..\MinHook\include\MinHook.h"
@@ -70,7 +71,6 @@ namespace ART_LIB
 			bool DetectManualMap = false;
 			bool DetectInlineHooks = false;
 			bool DetectMemoryPatch = false;
-			// Белый список модулей, у которых пропускается проверка экспортов, на случай если экспортов нет (иначе будет ложно-положительный детект). Конкретно на провинции сейчас только один такой модуль - yacl.asi, его нужно сюда добавить.
 			std::vector<std::string> ModulesWhitelist;
 		};
 		static void DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList);
