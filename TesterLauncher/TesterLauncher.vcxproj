@@ -167,7 +167,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SafeLaunch.h" />
-    <ClInclude Include="WinReg.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
