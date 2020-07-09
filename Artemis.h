@@ -50,16 +50,16 @@ namespace ART_LIB
 			volatile bool ModuleScanner = false;
 			DWORD ThreadScanDelay = 0x0;
 			std::vector<PVOID> ExcludedModules;
+			std::vector<PVOID> ExcludedImages;
 			bool DetectModules = false;
 			DWORD ModuleScanDelay = 0x0;
+			DWORD MemoryScanDelay = 0x0;
 			bool DetectFakeLaunch = false;
 			bool DetectAPC = false;
 			bool DetectReturnAddresses = false;
-			std::vector<PVOID> GameFuncAddrs;
 			bool DetectManualMap = false;
 			bool DetectInlineHooks = false;
 			bool DetectMemoryPatch = false;
-			// Белый список модулей, у которых пропускается проверка экспортов, на случай если экспортов нет (иначе будет ложно-положительный детект). Конкретно на провинции сейчас только один такой модуль - yacl.asi, его нужно сюда добавить.
 			std::vector<std::string> ModulesWhitelist;
 		};
 	};

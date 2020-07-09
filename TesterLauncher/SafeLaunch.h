@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #pragma once
 #include <Windows.h>
 #include <stdio.h>
@@ -7,6 +7,9 @@
 #include <winternl.h>
 #include <vector>
 #include <tuple>
+#include <random>
+#include "WinReg.hpp"
+
 namespace SafeLaunch
 {
 	std::map<DWORD_PTR, DWORD_PTR> hooks; PVOID syscall = nullptr;
@@ -232,31 +235,23 @@ namespace SafeLaunch
 			BOOL rslt = CreateSafeProcess(lpApplicationName, lpCommandLine,
 				lpProcessAttributes, lpThreadAttributes, bInheritHandles,
 				CREATE_SUSPENDED, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation);
-			printf("lpProcessInformation:\ndwProcessId=%d\ndwThreadId=%d\nhProcess valid=%d\nhThread valid=%d\nTarget is suspended. Please, attach debugger and press any key in this console to continue.\n", lpProcessInformation->dwProcessId, lpProcessInformation->dwThreadId, lpProcessInformation->hProcess?1:0, lpProcessInformation->hThread ? 1 : 0);
-			_getch();
 			if (lpProcessInformation->hProcess == NULL || rslt == NULL) return NULL;
+
+			//else printf("LAST FUCKING ERROR! %d\n", GetLastError());
+
 			PVOID ctrlByte = VirtualAllocEx(lpProcessInformation->hProcess, 0,
-				0x1, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE); 
-			if (!ctrlByte) printf("Error code 1: %d\n", GetLastError());
+				0x1, MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 			BYTE nop[] = { 0x90 };
 			HRESULT wrres = WriteProcessMemory(lpProcessInformation->hProcess, ctrlByte, nop, 0x1, NULL);
-			if (wrres != S_OK) printf("Error code 2: (LastError)%d (wrres)%d\n", GetLastError(), wrres);
-			printf("Allocated memory address: %p\n", ctrlByte);
 			CONTEXT context = { 0 };
 			context.ContextFlags = CONTEXT_ALL;
 			GetThreadContext(lpProcessInformation->hThread, &context);
-			printf("---\n");
-			printf("Current thread context\nDr2: 0x%08x\nDr7: 0x%08x\n", context.Dr2, context.Dr7); // Empty in tester
-			auto index = HWBP::GetFreeIndex(context.Dr7); // Always 0 in tester because of no HWBPs
-			printf("FreeIndex: %d\n", index);
+			auto index = HWBP::GetFreeIndex(context.Dr7);
 			if (index < 0) return NULL;
 			context.Dr7 |= 1 << (2 * index) | 0x100;
-			printf("New Dr7: 0x%08x\n", context.Dr7);
 			*((DWORD_PTR*)&context.Dr2 + index) = (DWORD_PTR)ctrlByte;
-			//printf("CtrlByte (allocated in target) address (here should be nop): %p\n", (DWORD)&ctrlByte);
-			printf("context.Dr2 + index address (here should be CtrlByte value): %p\n", (void*)(context.Dr2 + index));
-			printf("context.Dr2: 0x%08x\n", context.Dr2);
 			SetThreadContext(lpProcessInformation->hThread, &context);
+
 			ResumeThread(lpProcessInformation->hThread);
 			
 			DWORD_PTR ZwAddr = (DWORD_PTR)GetProcAddress(GetModuleHandleA("ntdll.dll"), "ZwCreateUserProcess");

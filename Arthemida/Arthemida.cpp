@@ -226,16 +226,18 @@ void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 		Sleep(cfg->MemoryScanDelay);
 	}
 }
+
 bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks()
 {
-	//MH_CreateHook(OriginalApcDispatcher, it.first, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)); 
-	//MH_EnableHook(MH_ALL_HOOKS); //test
 	return true;
 }
+
 bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 {
 	return true;
 }
+
+// Сканнер памяти (анти-ммап)
 void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
@@ -300,12 +302,15 @@ void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
 		Sleep(cfg->MemoryScanDelay);
 	}
 }
+
 void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor()
 {
 	DeleteApcDispatcher();
 	DeleteGameHooks();
 	MH_Uninitialize();
 }
+
+// Проверка на наличие секретного байта в памяти, который должен выставить лаунчер
 void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
 {
 	THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);
@@ -320,7 +325,7 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 					(HANDLE ThreadHandle, THREADINFOCLASS ThreadInformationClass,
 						PVOID ThreadInformation, ULONG ThreadInformationLength,
 						PULONG ReturnLength);
-				
+
 				tNtQueryInformationThread NtQueryInformationThread = (tNtQueryInformationThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread");
 
 				HANDLE pThread = OpenThread(THREAD_ALL_ACCESS, FALSE, th32.th32ThreadID);
@@ -334,15 +339,10 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 						((DWORD_PTR)GetModuleHandleA(NULL) + mbi.RegionSize))
 					{
 						context.ContextFlags = CONTEXT_ALL;
-						if (!GetThreadContext(pThread, &context)) printf("GetThreadContext failed. Error code: %d\n", GetLastError());
-						else printf("GetThreadContext succeeded.\n");
+						GetThreadContext(pThread, &context);
 
 						ARTEMIS_DATA data;
 						data.type = DetectionType::ART_FAKE_LAUNCHER;
-						printf("Current Thread ID: 0x%X\n", th32.th32ThreadID);
-						printf("Dr7: 0x%X\n", context.Dr7);
-						printf("Dr2: 0x%X\nWaiting for your check, press any key to continue.\n", context.Dr2);
-						_getch();
 
 						bool checkPassed = true;
 						if (context.Dr7 != NULL)
@@ -357,6 +357,7 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 									context.Dr2 = 0x0; context.Dr7 = 0x0;
 									SetThreadContext(pThread, &context);
 									ResumeThread(pThread); CloseHandle(pThread);
+									break;
 								}
 								else checkPassed = false;
 							}
@@ -384,11 +385,11 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	if (cfg->callback == nullptr) return nullptr;
 	if (cfg->DetectReturnAddresses) return nullptr;
 	MH_Initialize(); static ART_LIB::ArtemisLibrary art_lib;
-	if (cfg->DetectFakeLaunch) 
+	if (cfg->DetectFakeLaunch) // Детект лаунчера (должен запускаться в первую очередь)
 	{
-		std::thread WaitForCheckLauncher(ART_LIB::ArtemisLibrary::CheckLauncher, cfg);
-		WaitForCheckLauncher.detach();
+		ART_LIB::ArtemisLibrary::CheckLauncher(cfg);
 	}
+
 	if (cfg->DetectThreads) // Детект сторонних потоков
 	{
 		if (!cfg->ThreadScanDelay) cfg->ThreadScanDelay = 1000;
@@ -396,6 +397,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::ScanForDllThreads, cfg);
 		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканнера ScanForDllThreads
 	}
+
 	if (cfg->DetectModules) // Детект сторонних модулей
 	{
 		if (!cfg->ModuleScanDelay) cfg->ModuleScanDelay = 1000;
@@ -405,21 +407,25 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::ModuleScanner, cfg);
 		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканнера ModuleScanner
 	}
-	if (cfg->DetectAPC)
+
+	if (cfg->DetectAPC) // APC монитор
 	{
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::InstallApcDispatcher, cfg->callback);
 		AsyncScanner.detach(); // Создание и запуск асинхронного APC диспетчера
 	}
-	if (cfg->DetectReturnAddresses)
+
+	// Перенесено в 3 этап
+	/*if (cfg->DetectReturnAddresses)
 	{
 		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks);
 		CreateGameHooks.detach();
-	}
-	if (cfg->DetectManualMap)
+	}*/
+
+	if (cfg->DetectManualMap) // Детект мануал мапа
 	{
 		if (!cfg->MemoryScanDelay) cfg->MemoryScanDelay = 1000;
 		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
-		MmapThread.detach();
+		MmapThread.detach(); // Создание и запуск асинхронного потока сканнера мануал мапа
 	}
 	return &art_lib;
 }

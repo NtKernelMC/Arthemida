@@ -23,7 +23,7 @@ void __stdcall ArtemisCallback(ArtemisLibrary::ARTEMIS_DATA* artemis)
 			get<0>(artemis->ApcInfo), get<1>(artemis->ApcInfo), get<2>(artemis->ApcInfo));
 		break;
 	case ArtemisLibrary::DetectionType::ART_FAKE_LAUNCHER:
-		printf("FAKE LAUNCHER DETECTED!");
+		printf("FAKE LAUNCHER DETECTED!\n");
 		break;
 	default:
 		printf("Base: 0x%X | Size: %d | R: 0x%X | T: %d | DN: %s | DP: %s\n",
@@ -153,8 +153,12 @@ void ConsoleOutput() {
 	cfg.callback = ArtemisCallback;
 	cfg.DetectThreads = true;
 	cfg.DetectModules = true;
+
+	// 2 этап
 	cfg.DetectAPC = true;
 	cfg.DetectFakeLaunch = true;
+	cfg.DetectManualMap = true;
+	
 	cfg.ThreadScanDelay = 1000;
 	cfg.ModuleScanDelay = 1000;
 	ArtemisLibrary* art = alInitializeArtemis(&cfg);
