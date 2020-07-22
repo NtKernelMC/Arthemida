@@ -16,8 +16,9 @@ GameHooks::GameHooks()
 }
 void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_address)
 {
+    string moduleName = Utils::GetNameOfModuledAddressSpace(return_address, Utils::GenerateModuleNamesList());
 #ifdef ARTEMIS_DEBUG
-    Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X\n", function_name, return_address);
+    Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X in to module %s\n", function_name, return_address, moduleName.c_str());
 #endif
 }
 bool __fastcall GameHooks::ProcessLineOfSight(void* ECX, void* EDX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision, 

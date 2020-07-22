@@ -149,6 +149,45 @@ public:
 		}
 		return false;
 	}
+	static string GetMdlNameFromHmodule(HMODULE MDL)
+	{
+		CHAR szFileName[MAX_PATH + 1];
+		GetModuleFileNameA(MDL, szFileName, MAX_PATH + 1);
+		char fname[256]; char* ipt = strrchr(szFileName, '\\');
+		memset(fname, 0, sizeof(fname));
+		strdel(szFileName, 0, (ipt - szFileName + 1));
+		strncpy(fname, szFileName, strlen(szFileName));
+		for (DWORD x = 0; x < strlen(fname); x++) fname[x] = tolower(fname[x]);
+		return string(fname);
+	};
+	static vector<string> GenerateModuleNamesList()
+	{
+		HMODULE hMods[1024]; DWORD cbNeeded; vector<string> MdlList;
+		typedef BOOL(__stdcall* PtrEnumProcessModules)(HANDLE hProcess, HMODULE* lphModule, DWORD cb, LPDWORD lpcbNeeded);
+		PtrEnumProcessModules EnumProcModules =
+		(PtrEnumProcessModules)GetProcAddress(LoadLibraryA("psapi.dll"), "EnumProcessModules");
+		EnumProcModules(GetCurrentProcess(), hMods, sizeof(hMods), &cbNeeded);
+		for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++)
+		{
+			MdlList.push_back(GetMdlNameFromHmodule(hMods[i]));
+		}
+		return MdlList;
+	}
+	static string GetNameOfModuledAddressSpace(PVOID addr, vector<string> mdls)
+	{
+		typedef BOOL(__stdcall* GetMdlInfoP)(HANDLE hProcess, HMODULE hModule, LPMODULEINFO lpmodinfo, DWORD cb);
+		GetMdlInfoP GetMdlInfo = (GetMdlInfoP)GetProcAddress(LoadLibraryA("psapi.dll"), "GetModuleInformation");
+		for (const auto& it : mdls)
+		{
+			MODULEINFO modinfo; GetMdlInfo(GetCurrentProcess(), GetModuleHandleA(it.c_str()), &modinfo, sizeof(modinfo));
+			if ((DWORD_PTR)addr >= (DWORD_PTR)modinfo.lpBaseOfDll
+				&& (DWORD_PTR)addr <= ((DWORD_PTR)modinfo.lpBaseOfDll + modinfo.SizeOfImage))
+			{
+				return GetMdlNameFromHmodule((HMODULE)modinfo.lpBaseOfDll);
+			}
+		}
+		return string("UNKNOWN");
+	}
 	static bool CheckCRC32(HMODULE mdl, std::multimap<DWORD, std::string>& ModuleSnapshot)
 	{
 		if (mdl == nullptr) return false;
@@ -272,32 +311,5 @@ public:
 		WEAPONSKILL_PRO,
 		WEAPONSKILL_SPECIAL,    
 		WEAPONSKILL_MAX_NUMBER
-	};
-	enum class eWeaponSlot
-	{
-		WEAPONSLOT_TYPE_UNARMED = 0,
-		WEAPONSLOT_TYPE_MELEE,
-		WEAPONSLOT_TYPE_HANDGUN,
-		WEAPONSLOT_TYPE_SHOTGUN,
-		WEAPONSLOT_TYPE_SMG,        //4
-		WEAPONSLOT_TYPE_MG,
-		WEAPONSLOT_TYPE_RIFLE,
-		WEAPONSLOT_TYPE_HEAVY,
-		WEAPONSLOT_TYPE_THROWN,
-		WEAPONSLOT_TYPE_SPECIAL,    //9
-		WEAPONSLOT_TYPE_GIFT,       //10
-		WEAPONSLOT_TYPE_PARACHUTE,  //11
-		WEAPONSLOT_TYPE_DETONATOR,  //12
-
-		WEAPONSLOT_MAX
-	};
-
-	enum class eWeaponState
-	{
-		WEAPONSTATE_READY,
-		WEAPONSTATE_FIRING,
-		WEAPONSTATE_RELOADING,
-		WEAPONSTATE_OUT_OF_AMMO,
-		WEAPONSTATE_MELEE_MADECONTACT
 	};
 };
