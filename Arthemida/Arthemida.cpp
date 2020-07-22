@@ -371,8 +371,8 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 				return false;
 			if (MH_CreateHook((void*)FUNC_IsLineOfSightClear, IsLineOfSightClear, reinterpret_cast<PVOID*>(&callIsLineOfSightClear)) != MH_OK)
 				return false;
-			trampoline = MakeJump(FUNC_GetBonePosition, (DWORD)&GetBonePosition, prologue, 7);
-			trampoline_t = MakeJump(FUNC_GetTransformedBonePosition, (DWORD)&GetTransformedBonePosition, prologue_t, 7);
+			trampoline = MakeJump(FUNC_GetBonePosition, (DWORD)&GetBonePosition, prologue, 5);
+			trampoline_t = MakeJump(FUNC_GetTransformedBonePosition, (DWORD)&GetTransformedBonePosition, prologue_t, 5);
 			if (MH_CreateHook((void*)FUNC_Teleport, Teleport, reinterpret_cast<PVOID*>(&callTeleport)) != MH_OK)
 				return false;
 			if (MH_CreateHook((void*)FUNC_FindGroundZForCoord, FindGroundZForPosition, 
