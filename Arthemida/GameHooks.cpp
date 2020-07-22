@@ -1,14 +1,12 @@
 #include "GameHooks.h"
 GameHooks::ptrProcessLineOfSight GameHooks::callProcessLineOfSight = nullptr;
 GameHooks::ptrIsLineOfSightClear GameHooks::callIsLineOfSightClear = nullptr;
-GameHooks::ptrGetBonePosition GameHooks::callGetBonePosition = nullptr;
-GameHooks::ptrGetTransformedBonePosition GameHooks::callGetTransformedBonePosition = nullptr;
 GameHooks::ptrTeleport GameHooks::callTeleport = nullptr;
 GameHooks::ptrFindGroundZForPosition GameHooks::callFindGroundZForPosition = nullptr;
 GameHooks::ptrFindGroundZFor3DPosition GameHooks::callFindGroundZFor3DPosition = nullptr;
 GameHooks::ptrGiveWeapon GameHooks::callGiveWeapon = nullptr;
-BYTE GameHooks::prologue[7];
-BYTE GameHooks::prologue_t[7];
+BYTE GameHooks::prologue[5];
+BYTE GameHooks::prologue_t[5];
 DWORD GameHooks::trampoline = 0x0;
 DWORD GameHooks::trampoline_t = 0x0;
 GameHooks::GameHooks()
@@ -38,12 +36,12 @@ bool __fastcall GameHooks::IsLineOfSightClear(void* ECX, void* EDX, const CVecto
     bool rslt = callIsLineOfSightClear(ECX, vecStart, vecEnd, flags);
     return rslt;
 }
-void __stdcall GameHooks::GetBonePosition(Utils::eBone bone, CVector* vecPosition)
+void __stdcall GameHooks::GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     __asm jmp trampoline
 }
-void __stdcall GameHooks::GetTransformedBonePosition(Utils::eBone bone, CVector* vecPosition)
+void __stdcall GameHooks::GetTransformedBonePosition(void *ECX, Utils::eBone bone, CVector* vecPosition)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     __asm jmp trampoline_t
