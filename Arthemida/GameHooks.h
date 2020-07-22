@@ -13,14 +13,12 @@
 #define FUNC_Teleport 0x4F5690 // наш хук
 #define FUNC_FindGroundZForCoord 0x569660 // наш хук
 #define FUNC_FindGroundZFor3DCoord 0x5696C0 // нет хука (закоменчен)
+static BYTE prologue[5]; static BYTE prologue_t[5];
+static DWORD trampoline = 0x0; static DWORD trampoline_t = 0x0;
 class GameHooks
 {
 public:
 	GameHooks();
-    static BYTE prologue[5];
-    static BYTE prologue_t[5];
-    static DWORD trampoline;
-    static DWORD trampoline_t;
     typedef void CWeapon;
     typedef void CVehicle;
     typedef void CColPoint;
@@ -63,10 +61,6 @@ public:
     static ptrIsLineOfSightClear callIsLineOfSightClear;
     static bool __fastcall IsLineOfSightClear(void* ECX, void *EDX, const CVector* vecStart, const CVector* vecEnd, const SLineOfSightFlags flags);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    static void __stdcall GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition);
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    static void __stdcall GetTransformedBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition);
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef void (__thiscall* ptrTeleport)(void* ECX, CVector* vecPoint);
     static ptrTeleport callTeleport;
     static void __fastcall Teleport(void *ECX, void *EDX, CVector* vecPoint);
@@ -83,3 +77,25 @@ public:
     static ptrGiveWeapon callGiveWeapon;
     static CWeapon* __fastcall GiveWeapon(void* ECX, void* EDX, Utils::eWeaponType weaponType, unsigned int uiAmmo, Utils::eWeaponSkill skill);
 };
+static __declspec(naked) void __stdcall GetBonePosition()
+{
+    __asm pusha
+    __asm pushfd
+    __asm pushad
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    __asm popad
+    __asm popfd
+    __asm popa
+    __asm jmp trampoline
+}
+static __declspec(naked) void __stdcall GetTransformedBonePosition()
+{
+    __asm pusha
+    __asm pushfd
+    __asm pushad
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    __asm popad
+    __asm popfd
+    __asm popa
+    __asm jmp trampoline_t
+}
