@@ -5,6 +5,8 @@
 // Used for AimBot/TriggerBot
 #define FUNC_ProcessLineOfSight 0x56BA00
 #define FUNC_IsLineOfSightClear 0x56A490
+//GetBonePosition
+//GetTransformedBonePosition
 // Used for Teleport/CoordMaster
 #define FUNC_FindGroundZFor3DCoord 0x5696C0
 #define FUNC_FindGroundZForCoord 0x569660

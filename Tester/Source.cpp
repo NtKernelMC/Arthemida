@@ -15,20 +15,34 @@ using namespace std;
 using namespace ART_LIB;
 void __stdcall ArtemisCallback(ArtemisLibrary::ARTEMIS_DATA* artemis)
 {
-	if (artemis == nullptr) { printf("Invalid ARTEMIS_DATA in callback"); return; };
+	if (artemis == nullptr) return;
 	switch (artemis->type)
 	{
 	case ArtemisLibrary::DetectionType::ART_APC_INJECTION:
 		printf("DETECTED APC! (ARGUMENT: 0x%X | CONTEXT: 0x%X | PROC: %s)\n",
 			get<0>(artemis->ApcInfo), get<1>(artemis->ApcInfo), get<2>(artemis->ApcInfo));
 		break;
-	case ArtemisLibrary::DetectionType::ART_FAKE_LAUNCHER:
-		printf("FAKE LAUNCHER DETECTED!\n");
+	case ArtemisLibrary::DetectionType::ART_MANUAL_MAP:
+		printf("Detected MMAP! Base: 0x%X | Size: 0x%X | Rights: 0x%X\n",
+			artemis->baseAddr, artemis->regionSize, artemis->MemoryRights);
 		break;
-	default:
-		printf("Base: 0x%X | Size: %d | R: 0x%X | T: %d | DN: %s | DP: %s\n",
-			artemis->baseAddr, artemis->regionSize, artemis->MemoryRights,
-			artemis->type, artemis->dllName.c_str(), artemis->dllPath.c_str());
+	case ArtemisLibrary::DetectionType::ART_RETURN_ADDRESS:
+		printf("Detected Return to Hack Function! Address: 0x%X\n", artemis->baseAddr);
+		break;
+	case ArtemisLibrary::DetectionType::ART_ILLEGAL_THREAD:
+		printf("Detected Anonymous thread! Base: 0x%X | Size: 0x%X\n",
+			artemis->baseAddr, artemis->regionSize);
+		break;
+	case ArtemisLibrary::DetectionType::ART_ILLEGAL_MODULE:
+		printf("Detected Illegal module! Base: 0x%X | DllName: %s | Path: %s | Size: %d\n",
+			artemis->baseAddr, artemis->dllName.c_str(), artemis->dllPath.c_str(), artemis->regionSize);
+		break;
+	case ArtemisLibrary::DetectionType::ART_FAKE_LAUNCHER:
+		printf("Detected fake launcher!\n");
+		break;
+	case ArtemisLibrary::DetectionType::ART_MEMORY_CHANGED:
+		printf("Detected Illegal module! Base: 0x%X | Rights: 0x%X | Size: %d\n",
+			artemis->baseAddr, artemis->MemoryRights, artemis->regionSize);
 		break;
 	}
 }
