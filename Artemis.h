@@ -23,8 +23,7 @@ namespace ART_LIB
 			ART_APC_INJECTION = 4,
 			ART_RETURN_ADDRESS = 5,
 			ART_MANUAL_MAP = 6,
-			ART_INLINE_HOOK = 7,
-			ART_MEMORY_CHANGED = 8
+			ART_MEMORY_CHANGED = 7
 		};
 		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 		struct ARTEMIS_DATA
@@ -58,7 +57,6 @@ namespace ART_LIB
 			bool DetectAPC = false;
 			bool DetectReturnAddresses = false;
 			bool DetectManualMap = false;
-			bool DetectInlineHooks = false;
 			bool DetectMemoryPatch = false;
 			std::vector<std::string> ModulesWhitelist;
 		};
