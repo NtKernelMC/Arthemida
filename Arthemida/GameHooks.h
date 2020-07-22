@@ -50,6 +50,8 @@ public:
         bool bShootThroughStuff;
         bool bCheckCarTires;
     };
+    static DWORD MakeJump(DWORD jmp_address, DWORD hookAddr, BYTE* prologue, size_t prologue_size);
+    static bool RestorePrologue(DWORD addr, BYTE* prologue, size_t prologue_size);
     static void CheckIfReturnIsLegit(const char* function_name, PVOID return_address);
     typedef bool (__thiscall* ptrProcessLineOfSight)(void *ECX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision, 
     CEntity** CollisionEntity, const SLineOfSightFlags flags, SLineOfSightBuildingResult* pBuildingResult);
