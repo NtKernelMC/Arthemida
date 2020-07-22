@@ -4,15 +4,15 @@
 #endif
 #include "Utils.h"
 // Used for AimBot/TriggerBot/WallHack
-#define FUNC_GiveWeapon 0x5E6080
-#define FUNC_ProcessLineOfSight 0x56BA00
-#define FUNC_IsLineOfSightClear 0x56A490
-#define FUNC_GetBonePosition 0x5E4280
-#define FUNC_GetTransformedBonePosition 0x5E01C0
+#define FUNC_GiveWeapon 0x5E6080 // наш хук
+#define FUNC_ProcessLineOfSight 0x56BA00 // multiplayer_sa.dll
+#define FUNC_IsLineOfSightClear 0x56A490 // multiplayer_sa.dll
+#define FUNC_GetBonePosition 0x5E4280 // нет хука (закоменчен)
+#define FUNC_GetTransformedBonePosition 0x5E01C0 // нет хука (закоменчен)
 // Used for Teleport/CoordMaster
-#define FUNC_Teleport 0x4F5690
-#define FUNC_FindGroundZForCoord 0x569660
-#define FUNC_FindGroundZFor3DCoord 0x5696C0
+#define FUNC_Teleport 0x4F5690 // наш хук
+#define FUNC_FindGroundZForCoord 0x569660 // наш хук
+#define FUNC_FindGroundZFor3DCoord 0x5696C0 // нет хука (закоменчен)
 class GameHooks
 {
 public:
