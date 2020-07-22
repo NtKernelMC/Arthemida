@@ -12,6 +12,7 @@ namespace ART_LIB
 	class ArtemisLibrary : public GameHooks 
 	{
 	public:
+		ArtemisLibrary() : GameHooks() { }
 		enum class DetectionType
 		{
 			ART_ILLEGAL_THREAD = 1,
