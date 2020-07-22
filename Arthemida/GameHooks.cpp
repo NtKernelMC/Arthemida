@@ -6,6 +6,7 @@ GameHooks::ptrGetTransformedBonePosition GameHooks::callGetTransformedBonePositi
 GameHooks::ptrTeleport GameHooks::callTeleport = nullptr;
 GameHooks::ptrWarpPedIntoCar GameHooks::callWarpPedIntoCar = nullptr;
 GameHooks::ptrFindGroundZForPosition GameHooks::callFindGroundZForPosition = nullptr;
+GameHooks::ptrFindGroundZFor3DPosition GameHooks::callFindGroundZFor3DPosition = nullptr;
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
@@ -64,5 +65,11 @@ float __fastcall GameHooks::FindGroundZForPosition(void* ECX, void* EDX, float f
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     float rslt = callFindGroundZForPosition(ECX, fX, fY);
+    return rslt;
+}
+float __fastcall GameHooks::FindGroundZFor3DPosition(void* ECX, void* EDX, CVector* vecPosition)
+{
+    CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    float rslt = callFindGroundZFor3DPosition(ECX, vecPosition);
     return rslt;
 }

@@ -375,7 +375,11 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 				return false;
 			if (MH_CreateHook((void*)FUNC_WarpPedIntoCar, WarpPedIntoCar, reinterpret_cast<PVOID*>(&callWarpPedIntoCar)) != MH_OK)
 				return false;
-			if (MH_CreateHook((void*)FUNC_FindGroundZFor3DCoord, FindGroundZForPosition, reinterpret_cast<PVOID*>(&callFindGroundZForPosition)) != MH_OK)
+			if (MH_CreateHook((void*)FUNC_FindGroundZForCoord, FindGroundZForPosition, 
+				reinterpret_cast<PVOID*>(&callFindGroundZForPosition)) != MH_OK)
+				return false;
+			if (MH_CreateHook((void*)FUNC_FindGroundZFor3DCoord, FindGroundZFor3DPosition, 
+				reinterpret_cast<PVOID*>(&callFindGroundZFor3DPosition)) != MH_OK)
 				return false;
 		}
 		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)

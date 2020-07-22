@@ -10,9 +10,9 @@
 #define FUNC_GetTransformedBonePosition 0x5E01C0
 // Used for Teleport/CoordMaster
 #define FUNC_Teleport 0x4F5690
-#define FUNC_WarpPedIntoCar 0x4EF8B0
-#define FUNC_FindGroundZFor3DCoord 0x5696C0
+#define FUNC_WarpPedIntoCar 0x4EF8B1 // was B0 in the end of addr (crash fix possible!)
 #define FUNC_FindGroundZForCoord 0x569660
+#define FUNC_FindGroundZFor3DCoord 0x5696C0
 // Used for Weapon Hacks
 #define FUNC_GiveWeapon 0x5E6080
 #define FUNC_SetCurrentWeapon 0x5E61F0
@@ -82,4 +82,8 @@ public:
     typedef float (__thiscall* ptrFindGroundZForPosition)(void* ECX, float fX, float fY);
     static ptrFindGroundZForPosition callFindGroundZForPosition;
     static float __fastcall FindGroundZForPosition(void* ECX, void* EDX, float fX, float fY);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    typedef float (__thiscall* ptrFindGroundZFor3DPosition)(void* ECX, CVector* vecPosition);
+    static ptrFindGroundZFor3DPosition callFindGroundZFor3DPosition;
+    static float __fastcall FindGroundZFor3DPosition(void* ECX, void* EDX, CVector* vecPosition);
 };
