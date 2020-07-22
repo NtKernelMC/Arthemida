@@ -10,7 +10,7 @@
 #define FUNC_GetTransformedBonePosition 0x5E01C0
 // Used for Teleport/CoordMaster
 #define FUNC_Teleport 0x4F5690
-#define FUNC_WarpPedIntoCar 0x4EF8B1 // was B0 in the end of addr (crash fix possible!)
+#define FUNC_WarpPedIntoCar 0x4EF8B0
 #define FUNC_FindGroundZForCoord 0x569660
 #define FUNC_FindGroundZFor3DCoord 0x5696C0
 // Used for Weapon Hacks
@@ -23,7 +23,6 @@ class GameHooks
 {
 public:
 	GameHooks();
-	~GameHooks();
     typedef void CVehicle;
     typedef void CColPoint;
     typedef void CEntity;

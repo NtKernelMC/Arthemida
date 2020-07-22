@@ -10,14 +10,8 @@ GameHooks::ptrFindGroundZFor3DPosition GameHooks::callFindGroundZFor3DPosition =
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
-    Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
-#endif
-}
-GameHooks::~GameHooks()
-{
-#ifdef ARTEMIS_DEBUG
-    Utils::LogInFile(ARTEMIS_LOG, "Artemis Library unloaded.\n");
     DeleteFileA(ARTEMIS_LOG);
+    Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
 #endif
 }
 void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_address)

@@ -9,7 +9,7 @@
 #endif
 namespace ART_LIB
 {
-	class ArtemisLibrary : public GameHooks
+	class ArtemisLibrary : public GameHooks 
 	{
 	public:
 		enum class DetectionType
