@@ -4,9 +4,9 @@ GameHooks::ptrIsLineOfSightClear GameHooks::callIsLineOfSightClear = nullptr;
 GameHooks::ptrGetBonePosition GameHooks::callGetBonePosition = nullptr;
 GameHooks::ptrGetTransformedBonePosition GameHooks::callGetTransformedBonePosition = nullptr;
 GameHooks::ptrTeleport GameHooks::callTeleport = nullptr;
-GameHooks::ptrWarpPedIntoCar GameHooks::callWarpPedIntoCar = nullptr;
 GameHooks::ptrFindGroundZForPosition GameHooks::callFindGroundZForPosition = nullptr;
 GameHooks::ptrFindGroundZFor3DPosition GameHooks::callFindGroundZFor3DPosition = nullptr;
+GameHooks::ptrGiveWeapon GameHooks::callGiveWeapon = nullptr;
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
@@ -50,11 +50,6 @@ void __fastcall GameHooks::Teleport(void* ECX, void* EDX, CVector* vecPoint)
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     callTeleport(ECX, vecPoint);
 }
-void __fastcall GameHooks::WarpPedIntoCar(void* ECX, void* EDX, CVehicle* vehicle)
-{
-    CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
-    callWarpPedIntoCar(ECX, vehicle);
-}
 float __fastcall GameHooks::FindGroundZForPosition(void* ECX, void* EDX, float fX, float fY)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
@@ -65,5 +60,11 @@ float __fastcall GameHooks::FindGroundZFor3DPosition(void* ECX, void* EDX, CVect
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     float rslt = callFindGroundZFor3DPosition(ECX, vecPosition);
+    return rslt;
+}
+GameHooks::CWeapon* __fastcall GameHooks::GiveWeapon(void* ECX, void* EDX, Utils::eWeaponType weaponType, unsigned int uiAmmo, Utils::eWeaponSkill skill)
+{
+    CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    CWeapon* rslt = callGiveWeapon(ECX, weaponType, uiAmmo, skill);
     return rslt;
 }

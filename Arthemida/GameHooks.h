@@ -4,25 +4,20 @@
 #endif
 #include "Utils.h"
 // Used for AimBot/TriggerBot/WallHack
+#define FUNC_GiveWeapon 0x5E6080
 #define FUNC_ProcessLineOfSight 0x56BA00
 #define FUNC_IsLineOfSightClear 0x56A490
 #define FUNC_GetBonePosition 0x5E4280
 #define FUNC_GetTransformedBonePosition 0x5E01C0
 // Used for Teleport/CoordMaster
 #define FUNC_Teleport 0x4F5690
-#define FUNC_WarpPedIntoCar 0x4EF8B1 // was B0
 #define FUNC_FindGroundZForCoord 0x569660
 #define FUNC_FindGroundZFor3DCoord 0x5696C0
-// Used for Weapon Hacks
-#define FUNC_GiveWeapon 0x5E6080
-#define FUNC_SetCurrentWeapon 0x5E61F0
-#define FUNC_GetWeaponSlot 0x5DF200
-#define FUNC_SetCurrentWeaponFromID 0x4FF8E0
-#define FUNC_SetCurrentWeaponFromSlot 0x4FF900
 class GameHooks
 {
 public:
 	GameHooks();
+    typedef void CWeapon;
     typedef void CVehicle;
     typedef void CColPoint;
     typedef void CEntity;
@@ -74,10 +69,6 @@ public:
     static ptrTeleport callTeleport;
     static void __fastcall Teleport(void *ECX, void *EDX, CVector* vecPoint);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    typedef void (__thiscall* ptrWarpPedIntoCar)(void* ECX, CVehicle* vehicle);
-    static ptrWarpPedIntoCar callWarpPedIntoCar;
-    static void __fastcall WarpPedIntoCar(void* ECX, void* EDX, CVehicle* vehicle);
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef float (__thiscall* ptrFindGroundZForPosition)(void* ECX, float fX, float fY);
     static ptrFindGroundZForPosition callFindGroundZForPosition;
     static float __fastcall FindGroundZForPosition(void* ECX, void* EDX, float fX, float fY);
@@ -85,4 +76,8 @@ public:
     typedef float (__thiscall* ptrFindGroundZFor3DPosition)(void* ECX, CVector* vecPosition);
     static ptrFindGroundZFor3DPosition callFindGroundZFor3DPosition;
     static float __fastcall FindGroundZFor3DPosition(void* ECX, void* EDX, CVector* vecPosition);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    typedef CWeapon* (__thiscall* ptrGiveWeapon)(void* ECX, Utils::eWeaponType weaponType, unsigned int uiAmmo, Utils::eWeaponSkill skill);
+    static ptrGiveWeapon callGiveWeapon;
+    static CWeapon* __fastcall GiveWeapon(void* ECX, void* EDX, Utils::eWeaponType weaponType, unsigned int uiAmmo, Utils::eWeaponSkill skill);
 };
