@@ -12,7 +12,6 @@
 #include <conio.h>
 #include <algorithm>
 #include "Utils.h"
-#include "..\MinHook\include\MinHook.h"
 #include "GameHooks.h"
 #ifdef _WIN64
 #define START_ADDRESS (PVOID)0x00000000010000
@@ -76,12 +75,12 @@ namespace ART_LIB
 		static void DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList);
 		static void __stdcall ScanForDllThreads(ArtemisConfig* cfg);
 		static void __stdcall ModuleScanner(ArtemisConfig* cfg);
-		static bool __stdcall InstallApcDispatcher(ArtemisCallback callback);
-		static bool __stdcall DeleteApcDispatcher();
+		static bool __stdcall InstallApcDispatcher(ArtemisConfig* cfg);
 		static void __stdcall MemoryScanner(ArtemisConfig* cfg);
-		static bool __stdcall InstallGameHooks(void);
+		static bool __stdcall InstallGameHooks(ArtemisConfig* cfg);
 		static bool __stdcall DeleteGameHooks(void);
-		static void __stdcall ArtemisDestructor(void);
+		static bool __stdcall DisableArtemis(void);
+		static ArtemisLibrary* __cdecl ReloadArtemis(ArtemisConfig* cfg);
 		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
 	};
 };

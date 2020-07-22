@@ -5,17 +5,19 @@
 
 	<TASK> TODO:
 	Первый этап >>>
-	+ Обнаружения сторонних потоков в процессе
-	+ Защита против загрузки прокси-dllок
+	+ Сканер для обнаружения анонимных потоков в процессе
+	+ Защита против загрузки Proxy-DLL`ок в процесс
 	+ Защита от инжекта через глобальные хуки SetWindowsHookEx
 	Второй этап >>>
-	- Отсутствие защиты против DLL инжекта посредством запуска с фейк-лаунчера.
-	+ Сканнер памяти для обнаружения смапленных DLL 
-	+ APC монитор против QueueUserAPC инъекций
+	+ Защита против DLL инжекта посредством запуска с фейк-лаунчера
+	+ Сканер памяти для обнаружения смапленных DLL образов
+	+ APC монитор против QueueUserAPC инъекций DLL библиотек
 	Третий этап >>>
-	- Отсутствие проверки адресов возвратов с важных игровых функций
-	- Отсутствие сканнера хуков в памяти и защиты её целостности
-	- Сигнатурный сканнер модулей в PEB
+	+ Сделана проверка адресов возвратов с важных игровых функций
+	+ Добавлена возможность отключения и перезагрузки античита
+	+ Организована безопасная работа с установкой и удалением хуков
+	- Cканнер для защиты целостности памяти в местах хуков античита
+	- Сигнатурный cканер модулей в PEB на предмет поиска известных читов
 */
 #ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
@@ -26,7 +28,7 @@
 #pragma warning(disable : 4244)
 
 #include "Arthemida.h"
-
+ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); // прототипирование
 typedef struct
 {
 	bool installed;
@@ -71,44 +73,6 @@ extern "C" void __stdcall ApcHandler(PVOID ApcRoutine, PVOID Arg, PCONTEXT Conte
 extern "C" void(__stdcall * OriginalApcDispatcher)(PVOID NormalRoutine, PVOID SysArg1, PVOID SysArg2, CONTEXT Context) = nullptr;
 using ApcDispatcherPtr = void(__stdcall*)(PVOID NormalRoutine, PVOID SysArg1, PVOID SysArg2, CONTEXT Context);
 
-// Функция для создания APC диспетчера (хук)
-bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisCallback callback)
-{
-	if (flt.installed || callback == nullptr) return false;
-	flt.callback = callback;
-	OriginalApcDispatcher = (ApcDispatcherPtr)GetProcAddress(GetModuleHandleA("ntdll.dll"), "KiUserApcDispatcher");
-	if (OriginalApcDispatcher == nullptr) return false;
-	auto MakeForbiddenList = []() -> std::map<PVOID, const char*>
-	{
-		std::map<PVOID, const char*> forbidden;
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA"), "LoadLibraryA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryW"), "LoadLibraryW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExA"), "LoadLibraryExA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExW"), "LoadLibraryExW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryA"), "LoadLibraryA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryW"), "LoadLibraryW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryExA"), "LoadLibraryExA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryExW"), "LoadLibraryExW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll"), "LdrLoadDll"));
-		return forbidden;
-	}; 
-	flt.ForbiddenApcList = MakeForbiddenList();
-	MH_CreateHook(OriginalApcDispatcher, KiApcStub, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)); // Создание хука
-	MH_EnableHook(MH_ALL_HOOKS);
-	flt.installed = true;
-	return true;
-}
-
-// Функция для удаления APC диспетчера
-bool __stdcall ART_LIB::ArtemisLibrary::DeleteApcDispatcher()
-{
-	if (!flt.installed || OriginalApcDispatcher == nullptr) return false;
-	MH_DisableHook(MH_ALL_HOOKS);
-	MH_RemoveHook(OriginalApcDispatcher);
-	flt.installed = false;
-	return true;
-}
-
 // Функция для дампа экспортов указанного модуля (hModule) в ExportsList
 void ART_LIB::ArtemisLibrary::DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList)
 {
@@ -135,8 +99,7 @@ void ART_LIB::ArtemisLibrary::DumpExportTable(HMODULE hModule, std::multimap<PVO
 	}
 #endif  
 }
-
-// Сканнер потоков
+// Сканер потоков
 void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
@@ -147,7 +110,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
 	(HANDLE ThreadHandle, THREADINFOCLASS ThreadInformationClass, PVOID ThreadInformation, ULONG ThreadInformationLength, PULONG ReturnLength);
 	tNtQueryInformationThread NtQueryInformationThread =
 	(tNtQueryInformationThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread"); // Получение функции из ntdll
-	while (true) // Цикл сканнера
+	while (true) // Цикл Сканера
 	{
 		THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);
 		hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -155,7 +118,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
 		{
 			do
 			{
-				if (th32.th32OwnerProcessID == GetCurrentProcessId() && th32.th32ThreadID != GetCurrentThreadId()) // Работаем только с текущим процессом, исключая текущий поток (самого сканнера)
+				if (th32.th32OwnerProcessID == GetCurrentProcessId() && th32.th32ThreadID != GetCurrentThreadId()) // Работаем только с текущим процессом, исключая текущий поток (самого Сканера)
 				{
 					HANDLE targetThread = OpenThread(THREAD_ALL_ACCESS, FALSE, th32.th32ThreadID); // Открытие хендла к потоку для доступа
 					if (targetThread)
@@ -183,8 +146,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
 		Sleep(cfg->ThreadScanDelay);
 	}
 }
-
-// Сканнер модулей
+// Сканер модулей
 void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
@@ -226,18 +188,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 		Sleep(cfg->MemoryScanDelay);
 	}
 }
-
-bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks()
-{
-	return true;
-}
-
-bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
-{
-	return true;
-}
-
-// Сканнер памяти (анти-ммап)
+// Сканер памяти (анти-ммап)
 void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
@@ -302,14 +253,6 @@ void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
 		Sleep(cfg->MemoryScanDelay);
 	}
 }
-
-void __stdcall ART_LIB::ArtemisLibrary::ArtemisDestructor()
-{
-	DeleteApcDispatcher();
-	DeleteGameHooks();
-	MH_Uninitialize();
-}
-
 // Проверка на наличие секретного байта в памяти, который должен выставить лаунчер
 void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
 {
@@ -377,55 +320,117 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 	}
 	if (hSnapshot != NULL) CloseHandle(hSnapshot);
 }
-
+// Метод для инициализации APC обработчика (заполнение связанного списка опасных APC и установка перехватчика)
+bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisConfig* cfg)
+{
+	if (flt.installed || cfg == nullptr || cfg->callback == nullptr) return false; // защита от повторной установки обработчика и краша пустым указателем
+	flt.callback = cfg->callback; // копируем указатель на коллбэк т.к наш обработчик внешний
+	OriginalApcDispatcher = (ApcDispatcherPtr)GetProcAddress(GetModuleHandleA("ntdll.dll"), "KiUserApcDispatcher");
+	if (OriginalApcDispatcher == nullptr) return false;
+	auto MakeForbiddenList = []() -> std::map<PVOID, const char*>
+	{
+		std::map<PVOID, const char*> forbidden;
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA"), "LoadLibraryA"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryW"), "LoadLibraryW"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExA"), "LoadLibraryExA"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExW"), "LoadLibraryExW"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryA"), "LoadLibraryA"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryW"), "LoadLibraryW"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryExA"), "LoadLibraryExA"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryExW"), "LoadLibraryExW"));
+		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll"), "LdrLoadDll"));
+		return forbidden;
+	};
+	flt.ForbiddenApcList = MakeForbiddenList(); // Заполняем связанный список запрещенных APC
+	if (MH_CreateHook(OriginalApcDispatcher, KiApcStub, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)) == MH_OK) flt.installed = true; 
+	else
+	{
+		flt.installed = false; // Ставим флаг что APC обработчик не был включен из-за ошибки
+		return false; // информируем что произошла ошибка в установке перехвата
+	}
+	return true; // даем знать что APC обработчик был успешно установлен
+}
+bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
+{
+	if (cfg == nullptr) return false;
+	if (MH_Initialize() == MH_OK) // инициализация минхука для возможности установки хуков
+	{
+		if (cfg->DetectAPC) // если указана опция античита проверять APC инъекции то ставим обработчик
+		{
+			InstallApcDispatcher(cfg); // Вызываем установщик APC обрабочтика который ставит хук и производит заполнение APC-списка
+		}
+		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
+		{
+			if (MH_CreateHook((void*)FUNC_ProcessLineOfSight, ProcessLineOfSight, reinterpret_cast<PVOID*>(&callProcessLineOfSight)) != MH_OK)
+			{ return false; }
+		}
+		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
+	}
+	else return false; // информируем что произошла ошибка в установке перехвата
+	return true; // даем знать что все хуки и обработчики установлены успешно
+}
+bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
+{
+	if (flt.installed || OriginalApcDispatcher != nullptr) // Снимаем APC обработчик если он был включен
+	{
+		flt.installed = false; // меняем флаг на "APC обработчик выключен" для возможности повторной установки
+	}
+	MH_DisableHook(MH_ALL_HOOKS); // снимаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
+	MH_Uninitialize(); // деинициализация минхука для возможности его повторного использования после перезапуска античита
+	return true; // даем знать что все хуки были безопасно сняты и можно приступать к отключению античита
+}
+bool __stdcall ART_LIB::ArtemisLibrary::DisableArtemis() // Метод отключения античита (жизненно необходим для его перезапуска)
+{
+	if (DeleteGameHooks()) return true; // заботимся о снятии всех хуков и обработчиков чтобы избежать краша после отключения античита
+	return false;
+}
+ART_LIB::ArtemisLibrary* __cdecl ART_LIB::ArtemisLibrary::ReloadArtemis(ArtemisConfig* cfg) // Метод для удобного перезапуска античита
+{
+	if (cfg == nullptr) return nullptr; 
+	if (DisableArtemis()) // безопасное отключение античита
+	{
+		ArtemisLibrary* art_lib = alInitializeArtemis(cfg); // запускаем античит повторно
+		return art_lib; // возращаем двухуровневый указатель на оригинал содержащий настройки античита
+	}
+	return nullptr; // возращаем нулевой указатель если не удалось безопасно перезапустить античит
+}
 // Инициализация библиотеки
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig *cfg)
 {
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
 	if (cfg->DetectReturnAddresses) return nullptr;
-	MH_Initialize(); static ART_LIB::ArtemisLibrary art_lib;
+	static ART_LIB::ArtemisLibrary art_lib;
 	if (cfg->DetectFakeLaunch) // Детект лаунчера (должен запускаться в первую очередь)
 	{
 		ART_LIB::ArtemisLibrary::CheckLauncher(cfg);
 	}
-
 	if (cfg->DetectThreads) // Детект сторонних потоков
 	{
 		if (!cfg->ThreadScanDelay) cfg->ThreadScanDelay = 1000;
 		if (!cfg->ExcludedThreads.empty()) cfg->ExcludedThreads.clear(); // [Не настраивается юзером] Очистка на случай повторной инициализации с тем же cfg
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::ScanForDllThreads, cfg);
-		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканнера ScanForDllThreads
+		AsyncScanner.detach(); // Запуск асинхронного cканера безымянных потоков которые используются читерами для обхода детекта мануал мап сканнера
 	}
-
 	if (cfg->DetectModules) // Детект сторонних модулей
 	{
 		if (!cfg->ModuleScanDelay) cfg->ModuleScanDelay = 1000;
 		if (!cfg->ExcludedModules.empty()) cfg->ExcludedModules.clear(); // [Не настраивается юзером] Очистка на случай повторной инициализации с тем же cfg
 		HMODULE hPsapi = LoadLibraryA("psapi.dll"); // Загрузка нужной системной библиотеки для последующего получения из нее функции
-		cfg->lpGetMappedFileNameA = (ART_LIB::ArtemisLibrary::LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA"); // Получение функции GetMappedFileNameA из загруженной библиотеки
+		cfg->lpGetMappedFileNameA = (ART_LIB::ArtemisLibrary::LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA"); // Получение функции GetMappedFileNameA из загруженной библиотеки (Таков необходим для совместимости на Win Vista & XP т.к там эта функция не хранится в экспортах другого модуля)
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::ModuleScanner, cfg);
-		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканнера ModuleScanner
+		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканера модулей процесса
 	}
-
-	if (cfg->DetectAPC) // APC монитор
+	if (cfg->DetectAPC || cfg->DetectReturnAddresses) // Менеджер управляющий процессом распределения установки хуков
 	{
-		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::InstallApcDispatcher, cfg->callback);
-		AsyncScanner.detach(); // Создание и запуск асинхронного APC диспетчера
-	}
-
-	// Перенесено в 3 этап
-	/*if (cfg->DetectReturnAddresses)
-	{
-		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks);
+		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks, cfg);
 		CreateGameHooks.detach();
-	}*/
-
-	if (cfg->DetectManualMap) // Детект мануал мапа
+	}
+	if (cfg->DetectManualMap) // Детектор мануал маппинга
 	{
 		if (!cfg->MemoryScanDelay) cfg->MemoryScanDelay = 1000;
 		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
-		MmapThread.detach(); // Создание и запуск асинхронного потока сканнера мануал мапа
+		MmapThread.detach(); // Запуск асинхронного cканера для поиска смапленных образов DLL-библиотек
 	}
 	return &art_lib;
 }

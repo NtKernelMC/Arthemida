@@ -179,6 +179,7 @@
   <ItemGroup>
     <ClInclude Include="Arthemida.h" />
     <ClInclude Include="CRC32.h" />
+    <ClInclude Include="CVector.h" />
     <ClInclude Include="GameHooks.h" />
     <ClInclude Include="MinHook.h" />
     <ClInclude Include="Utils.h" />
