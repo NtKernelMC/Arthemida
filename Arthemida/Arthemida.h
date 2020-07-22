@@ -1,17 +1,4 @@
 ﻿#pragma once
-#include <Windows.h>
-#include <stdio.h>
-#include <thread>
-#include <vector>
-#include <string>
-#include <map>
-#include <tuple>
-#include <winternl.h>
-#include <TlHelp32.h>
-#include <Psapi.h>
-#include <conio.h>
-#include <algorithm>
-#include "Utils.h"
 #include "GameHooks.h"
 #ifdef _WIN64
 #define START_ADDRESS (PVOID)0x00000000010000

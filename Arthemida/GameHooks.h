@@ -1,7 +1,8 @@
 #pragma once
-#include <Windows.h>
-#include "CVector.h"
-#include "..\MinHook\include\MinHook.h"
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+#include "Utils.h"
 // Used for AimBot/TriggerBot/WallHack
 #define FUNC_ProcessLineOfSight 0x56BA00
 #define FUNC_IsLineOfSightClear 0x56A490
@@ -50,6 +51,7 @@ public:
         bool bShootThroughStuff;
         bool bCheckCarTires;
     };
+    static void CheckIfReturnIsLegit(const char* function_name, PVOID return_address);
     typedef bool (__thiscall* ptrProcessLineOfSight)(void *ECX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision, 
     CEntity** CollisionEntity, const SLineOfSightFlags flags, SLineOfSightBuildingResult* pBuildingResult);
     static ptrProcessLineOfSight callProcessLineOfSight;

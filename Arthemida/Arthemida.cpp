@@ -28,6 +28,7 @@
 #pragma warning(disable : 4244)
 
 #include "Arthemida.h"
+
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); // прототипирование
 typedef struct
 {
@@ -44,14 +45,14 @@ extern "C" void __stdcall HandleApc(PVOID ApcRoutine, PVOID Argument, PCONTEXT C
 {
 	auto IsRoutineForbidden = [](PVOID Routine) -> bool
 	{
-		if (SearchForSingleMapMatch<PVOID, const char*>(flt.ForbiddenApcList, Routine)) return true;
+		if (Utils::SearchForSingleMapMatch<PVOID, const char*>(flt.ForbiddenApcList, Routine)) return true;
 		return false;
 	};
 	if (IsRoutineForbidden(Argument))
 	{
 		ART_LIB::ArtemisLibrary::ARTEMIS_DATA ApcInfo;
 		char ForbiddenName[45]; memset(ForbiddenName, 0, sizeof(ForbiddenName));
-		strcpy(ForbiddenName, SearchForSingleMapMatchAndRet(flt.ForbiddenApcList, Argument).c_str());
+		strcpy(ForbiddenName, Utils::SearchForSingleMapMatchAndRet(flt.ForbiddenApcList, Argument).c_str());
 		ApcInfo.ApcInfo = std::make_tuple(Argument, Context, ForbiddenName);
 		ApcInfo.type = ART_LIB::ArtemisLibrary::DetectionType::ART_APC_INJECTION;
 		flt.callback(&ApcInfo);
@@ -126,7 +127,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
 						SuspendThread(targetThread); DWORD_PTR tempBase = 0x0; // Временная заморозка потока для получения информации
 						NtQueryInformationThread(targetThread, (THREADINFOCLASS)9, &tempBase, sizeof(DWORD_PTR), NULL); // Получение базового адреса потока
 						ResumeThread(targetThread); CloseHandle(targetThread); // Разморозка потока и закрытие хендла к нему
-						if (!IsMemoryInModuledRange((LPVOID)tempBase) && !IsVecContain(cfg->ExcludedThreads, (LPVOID)tempBase)) // Проверка на легальность потока (в if заходит в случае нелегального)
+						if (!Utils::IsMemoryInModuledRange((LPVOID)tempBase) && !Utils::IsVecContain(cfg->ExcludedThreads, (LPVOID)tempBase)) // Проверка на легальность потока (в if заходит в случае нелегального)
 						{
 							MEMORY_BASIC_INFORMATION mme{ 0 }; ARTEMIS_DATA data;
 							VirtualQueryEx(GetCurrentProcess(), (LPCVOID)tempBase, &mme, sizeof(th32.dwSize)); // Получение подробной информации по региону памяти потока
@@ -157,20 +158,20 @@ void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 	{
 		char moduleName[256]; memset(moduleName, 0, sizeof(moduleName));
 		cfg->lpGetMappedFileNameA(GetCurrentProcess(), mdl, moduleName, sizeof(moduleName));
-		if (CheckCRC32(mdl, cfg->ModuleSnapshot)) return true;
+		if (Utils::CheckCRC32(mdl, cfg->ModuleSnapshot)) return true;
 		return false;
 	};
 	while (true)
 	{
-		std::map<LPVOID, DWORD> NewModuleMap = BuildModuledMemoryMap(); // Получение списка базовых адресов загруженных модулей и их размера
+		std::map<LPVOID, DWORD> NewModuleMap = Utils::BuildModuledMemoryMap(); // Получение списка базовых адресов загруженных модулей и их размера
 		for (const auto& it : NewModuleMap)
 		{
 			if ((it.first != GetModuleHandleA(NULL) && it.first != cfg->hSelfModule) && // Условия: 1. Модуль не является текущим процессом; 2. Модуль не является текущим модулем (в котором используется античит)
-			!IsVecContain(cfg->ExcludedModules, it.first)) // 3. Модуль еще не проверен
+			!Utils::IsVecContain(cfg->ExcludedModules, it.first)) // 3. Модуль еще не проверен
 			{
 				CHAR szFileName[MAX_PATH + 1]; std::multimap<PVOID, std::string> ExportsList;
 				GetModuleFileNameA((HMODULE)it.first, szFileName, MAX_PATH + 1);
-				std::string NameOfDLL = GetDllName(szFileName);
+				std::string NameOfDLL = Utils::GetDllName(szFileName);
 				DumpExportTable(GetModuleHandleA(NameOfDLL.c_str()), ExportsList); // Получение списка экспортов модуля
 				if (!LegalModule((HMODULE)it.first) || (std::find(cfg->ModulesWhitelist.begin(), cfg->ModulesWhitelist.end(), NameOfDLL) == cfg->ModulesWhitelist.end() && ExportsList.size() < 2)) // Если модуль нелегальный (детект пока только на дубликаты длл (прокси)) или же у него меньше двух экспортов и он не в белом списке, вход в if
 				{
@@ -225,14 +226,14 @@ void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
 							}
 							if (complete_sequence)
 							{
-								if (!IsMemoryInModuledRange((PVOID)z))
+								if (!Utils::IsMemoryInModuledRange((PVOID)z))
 								{
 									typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 									LPFN_GetMappedFileNameA g_GetMappedFileNameA = nullptr; HMODULE hPsapi = LoadLibraryA("psapi.dll");
 									g_GetMappedFileNameA = (LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA");
 									char MappedName[256]; memset(MappedName, 0, sizeof(MappedName));
 									g_GetMappedFileNameA(GetCurrentProcess(), (PVOID)z, MappedName, sizeof(MappedName));
-									if (strlen(MappedName) < 4 && !IsVecContain(cfg->ExcludedImages, i->BaseAddress))
+									if (strlen(MappedName) < 4 && !Utils::IsVecContain(cfg->ExcludedImages, i->BaseAddress))
 									{
 										ARTEMIS_DATA data; data.baseAddr = (PVOID)foundIAT;
 										data.MemoryRights = i->Protect; data.regionSize = i->RegionSize;
