@@ -55,14 +55,24 @@ public:
     typedef bool (__thiscall* ptrProcessLineOfSight)(void *ECX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision, 
     CEntity** CollisionEntity, const SLineOfSightFlags flags, SLineOfSightBuildingResult* pBuildingResult);
     static ptrProcessLineOfSight callProcessLineOfSight;
-    static bool __fastcall ProcessLineOfSight(void* ECX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision, CEntity** CollisionEntity,
-    const SLineOfSightFlags flags, SLineOfSightBuildingResult* pBuildingResult);
+    static bool __fastcall ProcessLineOfSight(void* ECX, void* EDX, const CVector* vecStart, const CVector* vecEnd, 
+    CColPoint** colCollision, CEntity** CollisionEntity, const SLineOfSightFlags flags, SLineOfSightBuildingResult* pBuildingResult);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef bool (__thiscall* ptrIsLineOfSightClear)(void* ECX, const CVector* vecStart, const CVector* vecEnd, const SLineOfSightFlags flags);
     static ptrIsLineOfSightClear callIsLineOfSightClear;
-    static bool __fastcall IsLineOfSightClear(void* ECX, const CVector* vecStart, const CVector* vecEnd, const SLineOfSightFlags flags);
+    static bool __fastcall IsLineOfSightClear(void* ECX, void *EDX, const CVector* vecStart, const CVector* vecEnd, const SLineOfSightFlags flags);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    typedef CVector* (__thiscall* ptrGetBonePosition)(void *ECX, Utils::eBone bone, CVector* vecPosition);
+    typedef CVector* (__thiscall* ptrGetBonePosition)(void* ECX, Utils::eBone bone, CVector* vecPosition);
     static ptrGetBonePosition callGetBonePosition;
-    static CVector* __fastcall GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition);
+    static CVector* __fastcall GetBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    typedef CVector* (__thiscall* ptrGetTransformedBonePosition)(void* ECX, Utils::eBone bone, CVector* vecPosition);
+    static ptrGetTransformedBonePosition callGetTransformedBonePosition;
+    static CVector* __fastcall GetTransformedBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    typedef void (__thiscall* ptrTeleport)(void* ECX, CVector* vecPoint);
+    static ptrTeleport callTeleport;
+    static void __fastcall Teleport(void *ECX, void *EDX, CVector* vecPoint);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 };
