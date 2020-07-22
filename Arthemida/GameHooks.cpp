@@ -1,6 +1,7 @@
 #include "GameHooks.h"
 GameHooks::ptrProcessLineOfSight GameHooks::callProcessLineOfSight = nullptr;
 GameHooks::ptrIsLineOfSightClear GameHooks::callIsLineOfSightClear = nullptr;
+GameHooks::ptrGetBonePosition GameHooks::callGetBonePosition = nullptr;
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
@@ -31,5 +32,11 @@ bool __fastcall GameHooks::IsLineOfSightClear(void* ECX, const CVector* vecStart
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     bool rslt = callIsLineOfSightClear(ECX, vecStart, vecEnd, flags);
+    return rslt;
+}
+CVector* __fastcall GameHooks::GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition)
+{
+    CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    CVector* rslt = callGetBonePosition(ECX, bone, vecPosition);
     return rslt;
 }

@@ -62,4 +62,7 @@ public:
     static ptrIsLineOfSightClear callIsLineOfSightClear;
     static bool __fastcall IsLineOfSightClear(void* ECX, const CVector* vecStart, const CVector* vecEnd, const SLineOfSightFlags flags);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    typedef CVector* (__thiscall* ptrGetBonePosition)(void *ECX, Utils::eBone bone, CVector* vecPosition);
+    static ptrGetBonePosition callGetBonePosition;
+    CVector* __fastcall GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition);
 };
