@@ -362,11 +362,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		}
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
-			while (!GetModuleHandleA("multiplayer_sa.dll") && !GetModuleHandleA("game_sa.dll")) { Sleep(10); }
-			do
-			{
-				Sleep(10);
-			} while (*(BYTE*)FUNC_ProcessLineOfSight != 0xE9 && *(BYTE*)FUNC_IsLineOfSightClear != 0xE9);
 			if (MH_CreateHook((void*)FUNC_ProcessLineOfSight, ProcessLineOfSight, reinterpret_cast<PVOID*>(&callProcessLineOfSight)) != MH_OK)
 				return false;
 			if (MH_CreateHook((void*)FUNC_IsLineOfSightClear, IsLineOfSightClear, reinterpret_cast<PVOID*>(&callIsLineOfSightClear)) != MH_OK)
