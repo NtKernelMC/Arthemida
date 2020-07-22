@@ -7,6 +7,10 @@ GameHooks::ptrTeleport GameHooks::callTeleport = nullptr;
 GameHooks::ptrFindGroundZForPosition GameHooks::callFindGroundZForPosition = nullptr;
 GameHooks::ptrFindGroundZFor3DPosition GameHooks::callFindGroundZFor3DPosition = nullptr;
 GameHooks::ptrGiveWeapon GameHooks::callGiveWeapon = nullptr;
+BYTE GameHooks::prologue[7];
+BYTE GameHooks::prologue_t[7];
+DWORD GameHooks::trampoline = 0x0;
+DWORD GameHooks::trampoline_t = 0x0;
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
@@ -21,7 +25,7 @@ void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_add
     Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X in to module %s\n", function_name, return_address, moduleName.c_str());
 #endif
 }
-bool __fastcall GameHooks::ProcessLineOfSight(void* ECX, void* EDX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision, 
+bool __fastcall GameHooks::ProcessLineOfSight(void* ECX, void* EDX, const CVector* vecStart, const CVector* vecEnd, CColPoint** colCollision,
 CEntity** CollisionEntity, const SLineOfSightFlags flags, SLineOfSightBuildingResult* pBuildingResult)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
@@ -34,17 +38,15 @@ bool __fastcall GameHooks::IsLineOfSightClear(void* ECX, void* EDX, const CVecto
     bool rslt = callIsLineOfSightClear(ECX, vecStart, vecEnd, flags);
     return rslt;
 }
-CVector* __fastcall GameHooks::GetBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition)
+void __stdcall GameHooks::GetBonePosition(Utils::eBone bone, CVector* vecPosition)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
-    CVector* rslt = callGetBonePosition(ECX, bone, vecPosition);
-    return rslt;
+    __asm jmp trampoline
 }
-CVector* __fastcall GameHooks::GetTransformedBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition)
+void __stdcall GameHooks::GetTransformedBonePosition(Utils::eBone bone, CVector* vecPosition)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
-    CVector* rslt = callGetTransformedBonePosition(ECX, bone, vecPosition);
-    return rslt;
+    __asm jmp trampoline_t
 }
 void __fastcall GameHooks::Teleport(void* ECX, void* EDX, CVector* vecPoint)
 {

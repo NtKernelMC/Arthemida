@@ -7,16 +7,20 @@
 #define FUNC_GiveWeapon 0x5E6080 // наш хук
 #define FUNC_ProcessLineOfSight 0x56BA05 // multiplayer_sa.dll 0x56BA00
 #define FUNC_IsLineOfSightClear 0x56A495 // multiplayer_sa.dll 0x56A490
-#define FUNC_GetBonePosition 0x5E4285 // нет хука (закоменчен) 0x5E4280
-#define FUNC_GetTransformedBonePosition 0x5E01C5 // нет хука (закоменчен) 0x5E01C0
+#define FUNC_GetBonePosition 0x5E4280 // нет хука (закоменчен) 0x5E4280
+#define FUNC_GetTransformedBonePosition 0x5E01C0 // нет хука (закоменчен) 0x5E01C0
 // Used for Teleport/CoordMaster
-#define FUNC_Teleport 0x4F5695 // наш хук 0x4F5690
-#define FUNC_FindGroundZForCoord 0x569665 // наш хук 0x569660
-#define FUNC_FindGroundZFor3DCoord 0x5696C5 // нет хука (закоменчен) 0x5696C0
+#define FUNC_Teleport 0x4F5690 // наш хук
+#define FUNC_FindGroundZForCoord 0x569660 // наш хук
+#define FUNC_FindGroundZFor3DCoord 0x5696C0 // нет хука (закоменчен)
 class GameHooks
 {
 public:
 	GameHooks();
+    static BYTE prologue[7];
+    static BYTE prologue_t[7];
+    static DWORD trampoline;
+    static DWORD trampoline_t;
     typedef void CWeapon;
     typedef void CVehicle;
     typedef void CColPoint;
@@ -59,11 +63,13 @@ public:
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef CVector* (__thiscall* ptrGetBonePosition)(void* ECX, Utils::eBone bone, CVector* vecPosition);
     static ptrGetBonePosition callGetBonePosition;
-    static CVector* __fastcall GetBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition);
+    //static CVector* __fastcall GetBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition);
+    static void __stdcall GetBonePosition(Utils::eBone bone, CVector* vecPosition);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef CVector* (__thiscall* ptrGetTransformedBonePosition)(void* ECX, Utils::eBone bone, CVector* vecPosition);
     static ptrGetTransformedBonePosition callGetTransformedBonePosition;
-    static CVector* __fastcall GetTransformedBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition);
+    //static CVector* __fastcall GetTransformedBonePosition(void* ECX, void* EDX, Utils::eBone bone, CVector* vecPosition);
+    static void __stdcall GetTransformedBonePosition(Utils::eBone bone, CVector* vecPosition);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef void (__thiscall* ptrTeleport)(void* ECX, CVector* vecPoint);
     static ptrTeleport callTeleport;
