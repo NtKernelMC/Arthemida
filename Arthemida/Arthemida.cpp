@@ -362,13 +362,13 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		}
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
-			if (MH_CreateHook((void*)FUNC_ProcessLineOfSight, ProcessLineOfSight, reinterpret_cast<PVOID*>(&callProcessLineOfSight)) != MH_OK)
+			/*if (MH_CreateHook((void*)FUNC_ProcessLineOfSight, ProcessLineOfSight, reinterpret_cast<PVOID*>(&callProcessLineOfSight)) != MH_OK)
 				return false;
 			if (MH_CreateHook((void*)FUNC_IsLineOfSightClear, IsLineOfSightClear, reinterpret_cast<PVOID*>(&callIsLineOfSightClear)) != MH_OK)
-				return false;
+				return false;*/
 			trampoline = MakeJump(FUNC_GetBonePosition, (DWORD)&GetBonePosition, prologue, 5);
 			trampoline_t = MakeJump(FUNC_GetTransformedBonePosition, (DWORD)&GetTransformedBonePosition, prologue_t, 5);
-			if (MH_CreateHook((void*)FUNC_Teleport, Teleport, reinterpret_cast<PVOID*>(&callTeleport)) != MH_OK)
+			/*if (MH_CreateHook((void*)FUNC_Teleport, Teleport, reinterpret_cast<PVOID*>(&callTeleport)) != MH_OK)
 				return false;
 			if (MH_CreateHook((void*)FUNC_FindGroundZForCoord, FindGroundZForPosition, 
 				reinterpret_cast<PVOID*>(&callFindGroundZForPosition)) != MH_OK)
@@ -377,7 +377,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 				reinterpret_cast<PVOID*>(&callFindGroundZFor3DPosition)) != MH_OK)
 				return false;
 			if (MH_CreateHook((void*)FUNC_GiveWeapon, GiveWeapon, reinterpret_cast<PVOID*>(&callGiveWeapon)) != MH_OK)
-				return false;
+				return false;*/
 		}
 		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
 	}

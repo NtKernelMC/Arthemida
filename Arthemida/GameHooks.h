@@ -5,10 +5,10 @@
 #include "Utils.h"
 // Used for AimBot/TriggerBot/WallHack
 #define FUNC_GiveWeapon 0x5E6080 // наш хук
-#define FUNC_ProcessLineOfSight 0x56BA05 // multiplayer_sa.dll 0x56BA00
-#define FUNC_IsLineOfSightClear 0x56A495 // multiplayer_sa.dll 0x56A490
-#define FUNC_GetBonePosition 0x5E4295
-#define FUNC_GetTransformedBonePosition 0x5E01D5
+#define FUNC_ProcessLineOfSight 0x56BA00 // multiplayer_sa.dll 
+#define FUNC_IsLineOfSightClear 0x56A490 // multiplayer_sa.dll 
+#define FUNC_GetBonePosition 0x5E4295 // custom hooks
+#define FUNC_GetTransformedBonePosition 0x5E01D5 // custom hooks
 // Used for Teleport/CoordMaster
 #define FUNC_Teleport 0x4F5690 // наш хук
 #define FUNC_FindGroundZForCoord 0x569660 // наш хук
