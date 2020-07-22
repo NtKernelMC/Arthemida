@@ -145,7 +145,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <ExportNamedFunctions>alInitializeArtemis</ExportNamedFunctions>
+      <ExportNamedFunctions>alInitializeArtemis;DisableArtemis;ReloadArtemis</ExportNamedFunctions>
     </Lib>
     <MASM>
       <GenerateDebugInformation>false</GenerateDebugInformation>
