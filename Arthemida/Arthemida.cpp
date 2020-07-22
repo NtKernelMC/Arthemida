@@ -399,7 +399,13 @@ bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 }
 bool __stdcall ART_LIB::ArtemisLibrary::DisableArtemis() // Метод отключения античита (жизненно необходим для его перезапуска)
 {
-	if (DeleteGameHooks()) return true; // заботимся о снятии всех хуков и обработчиков чтобы избежать краша после отключения античита
+	if (DeleteGameHooks())
+	{
+#ifdef ARTEMIS_DEBUG
+		Utils::LogInFile(ARTEMIS_LOG, "Artemis Library unloaded.\n");
+#endif
+		return true; // заботимся о снятии всех хуков и обработчиков чтобы избежать краша после отключения античита
+	}
 	return false;
 }
 ART_LIB::ArtemisLibrary* __cdecl ART_LIB::ArtemisLibrary::ReloadArtemis(ArtemisConfig* cfg) // Метод для удобного перезапуска античита
