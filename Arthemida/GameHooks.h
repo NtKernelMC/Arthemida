@@ -64,5 +64,5 @@ public:
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     typedef CVector* (__thiscall* ptrGetBonePosition)(void *ECX, Utils::eBone bone, CVector* vecPosition);
     static ptrGetBonePosition callGetBonePosition;
-    CVector* __fastcall GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition);
+    static CVector* __fastcall GetBonePosition(void* ECX, Utils::eBone bone, CVector* vecPosition);
 };

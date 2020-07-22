@@ -364,6 +364,10 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		{
 			if (MH_CreateHook((void*)FUNC_ProcessLineOfSight, ProcessLineOfSight, reinterpret_cast<PVOID*>(&callProcessLineOfSight)) != MH_OK)
 			{ return false; }
+			if (MH_CreateHook((void*)FUNC_IsLineOfSightClear, IsLineOfSightClear, reinterpret_cast<PVOID*>(&callIsLineOfSightClear)) != MH_OK)
+			{ return false; }
+			if (MH_CreateHook((void*)FUNC_GetBonePosition, GetBonePosition, reinterpret_cast<PVOID*>(&callGetBonePosition)) != MH_OK)
+			{ return false; }
 		}
 		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
 	}
