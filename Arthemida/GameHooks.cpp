@@ -4,6 +4,8 @@ GameHooks::ptrIsLineOfSightClear GameHooks::callIsLineOfSightClear = nullptr;
 GameHooks::ptrGetBonePosition GameHooks::callGetBonePosition = nullptr;
 GameHooks::ptrGetTransformedBonePosition GameHooks::callGetTransformedBonePosition = nullptr;
 GameHooks::ptrTeleport GameHooks::callTeleport = nullptr;
+GameHooks::ptrWarpPedIntoCar GameHooks::callWarpPedIntoCar = nullptr;
+GameHooks::ptrFindGroundZForPosition GameHooks::callFindGroundZForPosition = nullptr;
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
@@ -52,4 +54,15 @@ void __fastcall GameHooks::Teleport(void* ECX, void* EDX, CVector* vecPoint)
 {
     CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
     callTeleport(ECX, vecPoint);
+}
+void __fastcall GameHooks::WarpPedIntoCar(void* ECX, void* EDX, CVehicle* vehicle)
+{
+    CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    callWarpPedIntoCar(ECX, vehicle);
+}
+float __fastcall GameHooks::FindGroundZForPosition(void* ECX, void* EDX, float fX, float fY)
+{
+    CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    float rslt = callFindGroundZForPosition(ECX, fX, fY);
+    return rslt;
 }

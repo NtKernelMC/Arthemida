@@ -24,6 +24,7 @@ class GameHooks
 public:
 	GameHooks();
 	~GameHooks();
+    typedef void CVehicle;
     typedef void CColPoint;
     typedef void CEntity;
     typedef void SLineOfSightBuildingResult;
@@ -74,5 +75,11 @@ public:
     static ptrTeleport callTeleport;
     static void __fastcall Teleport(void *ECX, void *EDX, CVector* vecPoint);
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+    typedef void (__thiscall* ptrWarpPedIntoCar)(void* ECX, CVehicle* vehicle);
+    static ptrWarpPedIntoCar callWarpPedIntoCar;
+    static void __fastcall WarpPedIntoCar(void* ECX, void* EDX, CVehicle* vehicle);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    typedef float (__thiscall* ptrFindGroundZForPosition)(void* ECX, float fX, float fY);
+    static ptrFindGroundZForPosition callFindGroundZForPosition;
+    static float __fastcall FindGroundZForPosition(void* ECX, void* EDX, float fX, float fY);
 };

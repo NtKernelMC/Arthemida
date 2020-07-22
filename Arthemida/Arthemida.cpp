@@ -358,7 +358,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 	{
 		if (cfg->DetectAPC) // если указана опция античита проверять APC инъекции то ставим обработчик
 		{
-			InstallApcDispatcher(cfg); // Вызываем установщик APC обрабочтика который ставит хук и производит заполнение APC-списка
+			if (!InstallApcDispatcher(cfg)) return false; // Вызываем установщик APC обрабочтика который ставит хук и производит заполнение APC-списка
 		}
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
@@ -372,6 +372,10 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 				reinterpret_cast<PVOID*>(&callGetTransformedBonePosition)) != MH_OK)
 				return false; 
 			if (MH_CreateHook((void*)FUNC_Teleport, Teleport, reinterpret_cast<PVOID*>(&callTeleport)) != MH_OK)
+				return false;
+			if (MH_CreateHook((void*)FUNC_WarpPedIntoCar, WarpPedIntoCar, reinterpret_cast<PVOID*>(&callWarpPedIntoCar)) != MH_OK)
+				return false;
+			if (MH_CreateHook((void*)FUNC_FindGroundZFor3DCoord, FindGroundZForPosition, reinterpret_cast<PVOID*>(&callFindGroundZForPosition)) != MH_OK)
 				return false;
 		}
 		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
@@ -409,7 +413,6 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 {
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
-	if (cfg->DetectReturnAddresses) return nullptr;
 	static ART_LIB::ArtemisLibrary art_lib;
 	if (cfg->DetectFakeLaunch) // Детект лаунчера (должен запускаться в первую очередь)
 	{
