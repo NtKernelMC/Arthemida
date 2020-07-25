@@ -362,22 +362,13 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		}
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
-			/*if (MH_CreateHook((void*)FUNC_ProcessLineOfSight, ProcessLineOfSight, reinterpret_cast<PVOID*>(&callProcessLineOfSight)) != MH_OK)
-				return false;
-			if (MH_CreateHook((void*)FUNC_IsLineOfSightClear, IsLineOfSightClear, reinterpret_cast<PVOID*>(&callIsLineOfSightClear)) != MH_OK)
-				return false;*/
+			trampoline_g = MakeJump(FUNC_GiveWeapon, (DWORD)&GiveWeapon, prologue_g, 5);
+			trampoline_p = MakeJump(FUNC_ProcessLineOfSight, (DWORD)&ProcessLineOfSight, prologue_p, 5);
+			trampoline_pp = MakeJump(FUNC_IsLineOfSightClear, (DWORD)&IsLineOfSightClear, prologue_pp, 5);
 			trampoline = MakeJump(FUNC_GetBonePosition, (DWORD)&GetBonePosition, prologue, 5);
 			trampoline_t = MakeJump(FUNC_GetTransformedBonePosition, (DWORD)&GetTransformedBonePosition, prologue_t, 5);
-			/*if (MH_CreateHook((void*)FUNC_Teleport, Teleport, reinterpret_cast<PVOID*>(&callTeleport)) != MH_OK)
-				return false;
-			if (MH_CreateHook((void*)FUNC_FindGroundZForCoord, FindGroundZForPosition, 
-				reinterpret_cast<PVOID*>(&callFindGroundZForPosition)) != MH_OK)
-				return false;
-			if (MH_CreateHook((void*)FUNC_FindGroundZFor3DCoord, FindGroundZFor3DPosition, 
-				reinterpret_cast<PVOID*>(&callFindGroundZFor3DPosition)) != MH_OK)
-				return false;
-			if (MH_CreateHook((void*)FUNC_GiveWeapon, GiveWeapon, reinterpret_cast<PVOID*>(&callGiveWeapon)) != MH_OK)
-				return false;*/
+			trampoline_t = MakeJump(FUNC_FindGroundZForCoord, (DWORD)&FindGroundZForPosition, prologue_c, 5);
+			trampoline_t = MakeJump(FUNC_FindGroundZFor3DCoord, (DWORD)&FindGroundZFor3DPosition, prologue_c3, 5);
 		}
 		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
 	}
@@ -386,7 +377,13 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 }
 bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 {
-	RestorePrologue(FUNC_GetBonePosition, prologue, 5); RestorePrologue(FUNC_GetTransformedBonePosition, prologue_t, 5);
+	RestorePrologue(FUNC_GiveWeapon, prologue_g, 5);
+	RestorePrologue(FUNC_ProcessLineOfSight, prologue_p, 5);
+	RestorePrologue(FUNC_IsLineOfSightClear, prologue_pp, 5);
+	RestorePrologue(FUNC_GetBonePosition, prologue, 5); 
+	RestorePrologue(FUNC_GetTransformedBonePosition, prologue_t, 5);
+	RestorePrologue(FUNC_FindGroundZForCoord, prologue_c, 5);
+	RestorePrologue(FUNC_FindGroundZFor3DCoord, prologue_c3, 5);
 	if (flt.installed || OriginalApcDispatcher != nullptr) // Снимаем APC обработчик если он был включен
 	{
 		flt.installed = false; // меняем флаг на "APC обработчик выключен" для возможности повторной установки
