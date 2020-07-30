@@ -183,6 +183,7 @@
     <ClInclude Include="CVector.h" />
     <ClInclude Include="GameHooks.h" />
     <ClInclude Include="MinHook.h" />
+    <ClInclude Include="sigscan.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>

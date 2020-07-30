@@ -1,43 +1,9 @@
 #include "GameHooks.h"
-DWORD GameHooks::MakeJump(DWORD jmp_address, DWORD hookAddr, BYTE* prologue, size_t prologue_size)
-{
-	DWORD old_prot = 0x0;
-	if (prologue == nullptr) return 0x0;
-	VirtualProtect((void*)jmp_address, prologue_size, PAGE_EXECUTE_READWRITE, &old_prot);
-	memcpy(prologue, (void*)jmp_address, prologue_size);
-	BYTE addrToBYTEs[5] = { 0xE9, 0x90, 0x90, 0x90, 0x90 };
-	DWORD JMPBYTEs = (hookAddr - jmp_address - 5);
-	memcpy(&addrToBYTEs[1], &JMPBYTEs, 4);
-	memcpy((void*)jmp_address, addrToBYTEs, 5);
-	PVOID Trampoline = VirtualAlloc(0, (5 + (prologue_size - 5)), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	BYTE TrampolineBYTEs[5] = { 0xE9, 0x90, 0x90, 0x90, 0x90 };
-	if (prologue_size > 5)
-	{
-		BYTE nop[] = { 0x90 };
-		for (BYTE x = 0; x < (prologue_size - 5); x++) memcpy((void*)(jmp_address + 0x5 + x), nop, 1);
-		memcpy(Trampoline, &prologue[3], (prologue_size - 3));
-		DWORD Delta = (jmp_address + prologue_size) - (((DWORD)Trampoline + (prologue_size - 3)) + 5);
-		memcpy(&TrampolineBYTEs[1], &Delta, 4);
-		memcpy((void*)((DWORD)Trampoline + (prologue_size - 3)), TrampolineBYTEs, 5);
-	}
-	else
-	{
-		DWORD Delta = (jmp_address + prologue_size) - ((DWORD)Trampoline + 5);
-		memcpy(&TrampolineBYTEs[1], &Delta, 4);
-		memcpy(Trampoline, TrampolineBYTEs, 5);
-	}
-	VirtualProtect((void*)jmp_address, prologue_size, old_prot, 0);
-	return (DWORD)Trampoline;
-}
-bool GameHooks::RestorePrologue(DWORD addr, BYTE* prologue, size_t prologue_size)
-{
-	if (prologue == nullptr) return false;
-	DWORD old_prot = 0;
-	VirtualProtect((void*)addr, prologue_size, PAGE_EXECUTE_READWRITE, &old_prot);
-	memcpy((void*)addr, prologue, prologue_size);
-	VirtualProtect((void*)addr, prologue_size, old_prot, &old_prot);
-	return true;
-}
+GameHooks::ptrAddEventHandler GameHooks::callAddEventHandler = nullptr;
+GameHooks::callGetCustomData GameHooks::ptrGetCustomData = (GameHooks::callGetCustomData)0x0;
+GameHooks::callSetCustomData GameHooks::ptrSetCustomData = (GameHooks::callSetCustomData)0x0;
+GameHooks::ptrCheckUTF8BOMAndUpdate GameHooks::callCheckUTF8BOMAndUpdate = (GameHooks::ptrCheckUTF8BOMAndUpdate)0x0;
+GameHooks::ptrTriggerServerEvent GameHooks::callTriggerServerEvent = (GameHooks::ptrTriggerServerEvent)0x0;
 GameHooks::GameHooks()
 {
 #ifdef ARTEMIS_DEBUG
@@ -47,7 +13,8 @@ GameHooks::GameHooks()
 }
 void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_address)
 {
-	vector<string> allowedModules = { "client.dll", "multiplayer_sa.dll", "game_sa.dll", "core.dll", "gta_sa.exe", "proxy_sa.exe" };
+	vector<string> allowedModules = { "client.dll", "multiplayer_sa.dll", "game_sa.dll", 
+	"core.dll", "gta_sa.exe", "proxy_sa.exe", "lua5.1c.dll", "pcre3.dll" };
     string moduleName = Utils::GetNameOfModuledAddressSpace(return_address, Utils::GenerateModuleNamesList());
 	if (!Utils::IsVecContain2(allowedModules, moduleName))
 	{
@@ -55,4 +22,33 @@ void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_add
 		Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X in to module %s\n", function_name, return_address, moduleName.c_str());
 #endif
 	}
+}
+void* __fastcall GameHooks::GetCustomData(CClientEntity* ECX, void* EDX, const char* szName, bool bInheritData, bool* pbIsSynced)
+{
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    void* rslt = ptrGetCustomData(ECX, szName, bInheritData, pbIsSynced);
+    return rslt;
+}
+void __fastcall GameHooks::SetCustomData(CClientEntity* ECX, void* EDX, const char* szName, void* Variable, bool bSynchronized)
+{
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    ptrSetCustomData(ECX, szName, Variable, bSynchronized);
+}
+bool __cdecl GameHooks::AddEventHandler(CLuaMain* LuaMain, const char* szName, CClientEntity* Entity,
+const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, float fPriorityMod)
+{
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    return callAddEventHandler(LuaMain, szName, Entity, iLuaFunction, bPropagated, eventPriority, fPriorityMod);
+}
+bool __cdecl GameHooks::CheckUTF8BOMAndUpdate(char** pcpOutBuffer, unsigned int* puiOutSize)
+{
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    bool rslt = callCheckUTF8BOMAndUpdate(pcpOutBuffer, puiOutSize);
+    return rslt;
+}
+bool __cdecl GameHooks::TriggerServerEvent(const char* szName, CClientEntity* CallWithEntity, void* Arguments)
+{
+    GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
+    bool rslt = callTriggerServerEvent(szName, CallWithEntity, Arguments);
+    return rslt;
 }

@@ -1,6 +1,8 @@
 ﻿#pragma once
 #define ARTEMIS_DEBUG
+#ifdef ARTEMIS_DEBUG
 #define ARTEMIS_LOG "!0_ArtemisDebug.log"
+#endif
 #include <Windows.h>
 #include <stdio.h>
 #include <thread>
@@ -16,6 +18,7 @@
 #include <intrin.h>
 #pragma intrinsic(_ReturnAddress)
 #include "CVector.h"
+#include "sigscan.h"
 #include "..\MinHook\include\MinHook.h"
 #include "CRC32.h"
 class Utils

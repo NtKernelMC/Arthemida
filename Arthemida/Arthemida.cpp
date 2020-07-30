@@ -28,7 +28,7 @@
 #pragma warning(disable : 4244)
 
 #include "Arthemida.h"
-
+SigScan scn;
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); // прототипирование
 typedef struct
 {
@@ -324,7 +324,8 @@ void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::A
 // Метод для инициализации APC обработчика (заполнение связанного списка опасных APC и установка перехватчика)
 bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisConfig* cfg)
 {
-	if (flt.installed || cfg == nullptr || cfg->callback == nullptr) return false; // защита от повторной установки обработчика и краша пустым указателем
+	if (cfg == nullptr || cfg->callback == nullptr) return false; // защита краша пустым указателем
+	if (flt.installed) return true; // защита от повторной установки обработчика
 	flt.callback = cfg->callback; // копируем указатель на коллбэк т.к наш обработчик внешний
 	OriginalApcDispatcher = (ApcDispatcherPtr)GetProcAddress(GetModuleHandleA("ntdll.dll"), "KiUserApcDispatcher");
 	if (OriginalApcDispatcher == nullptr) return false;
@@ -362,13 +363,69 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		}
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
-			trampoline_g = MakeJump(FUNC_GiveWeapon, (DWORD)&GiveWeapon, prologue_g, 5);
-			trampoline_p = MakeJump(FUNC_ProcessLineOfSight, (DWORD)&ProcessLineOfSight, prologue_p, 5);
-			trampoline_pp = MakeJump(FUNC_IsLineOfSightClear, (DWORD)&IsLineOfSightClear, prologue_pp, 5);
-			trampoline = MakeJump(FUNC_GetBonePosition, (DWORD)&GetBonePosition, prologue, 5);
-			trampoline_t = MakeJump(FUNC_GetTransformedBonePosition, (DWORD)&GetTransformedBonePosition, prologue_t, 5);
-			trampoline_t = MakeJump(FUNC_FindGroundZForCoord, (DWORD)&FindGroundZForPosition, prologue_c, 5);
-			trampoline_t = MakeJump(FUNC_FindGroundZFor3DCoord, (DWORD)&FindGroundZFor3DPosition, prologue_c3, 5);
+			while (!GetModuleHandleA("client.dll")) { Sleep(1000); } // Дожидаемся загрузки клиента
+			auto AddEventHandlerHook = []() -> void
+			{
+				const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };
+				const char mask[] = { "xxxxxxxxxxxxxxxxxx?????xx????xxxx" };
+			    DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
+				if (Addr != NULL)
+				{
+					MH_CreateHook((PVOID)Addr, &AddEventHandler, reinterpret_cast<PVOID*>(&callAddEventHandler));
+					Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler Hook installed!\n");
+				}
+				else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler - Can`t find sig.\n");
+			};
+			AddEventHandlerHook(); // Используется читерами для отключения клиентских событий
+			auto ElementDataHook = []() -> void
+			{
+				const char pattern[] = { "\x55\x8B\xEC\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x81\xEC\xB4\x00\x00\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\xF0\x56" };
+				const char mask[] = { "xxxxxx????xxxxxxxxxxxxxx????xxxxxx" }; 
+				DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
+				if (Addr != NULL)
+				{
+					MH_CreateHook((PVOID)Addr, &GetCustomData, reinterpret_cast<PVOID*>(&ptrSetCustomData));
+					Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData Hook installed!\n");
+				}
+				else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
+				//////////////////////////////////////////////////////////////////////////////////////
+				const char pattern2[] = { "\x55\x8B\xEC\x53\x8A\x5D\x0C" };
+				const char mask2[] = { "xxxxxxx" };
+				Addr = scn.FindPattern("client.dll", pattern2, mask2);
+				if (Addr != NULL)
+				{
+					MH_CreateHook((PVOID)Addr, &GetCustomData, reinterpret_cast<PVOID*>(&ptrGetCustomData));
+					Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData Hook installed!\n");
+				}
+				else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData - Can`t find sig.\n");
+			};
+			ElementDataHook(); // Используется читерами для получения списка элемент дат в луа скриптах (setElementData/getElementData)
+			auto InstallLuaHook = []()
+			{
+				const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\xFF\x36\xFF\x37\xE8\x00\x00\x00\x00\x83\xC4\x08\x84\xC0\x74\x0C\x83\x07\x03\xB0\x01\x83\x06\xFD\x5F\x5E\x5D\xC3" };
+				const char mask[] = { "xxxxxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxx" }; 
+				DWORD luaHook = scn.FindPattern("client.dll", pattern, mask);
+				if (luaHook != NULL)
+				{
+					callCheckUTF8BOMAndUpdate = (ptrCheckUTF8BOMAndUpdate)luaHook;
+					MH_CreateHook((PVOID)luaHook, &CheckUTF8BOMAndUpdate, reinterpret_cast<PVOID*>(&callCheckUTF8BOMAndUpdate));
+					Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
+				}
+				else Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Can`t find sig.\n");
+			}; InstallLuaHook(); // Используется читерами для инжекта lua скриптов в самой новой версии FireFest мультичита
+			auto InstallServerEventsHook = []()
+			{
+				const char pattern[] = { "\x55\x8B\xEC\x51\x53\x56\x57\x8B\x7D\x08\x85" };
+				const char mask[] = { "xxxxxxxxxxx" };
+				DWORD Hook = scn.FindPattern("client.dll", pattern, mask);
+				if (Hook != NULL)
+				{
+					callCheckUTF8BOMAndUpdate = (ptrCheckUTF8BOMAndUpdate)Hook;
+					MH_CreateHook((PVOID)Hook, &TriggerServerEvent, reinterpret_cast<PVOID*>(&callTriggerServerEvent));
+					Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
+				}
+				else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Can`t find sig.\n");
+			}; InstallServerEventsHook(); // Используется читерами для получения списка серверных событий
 		}
 		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
 	}
@@ -377,13 +434,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 }
 bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 {
-	RestorePrologue(FUNC_GiveWeapon, prologue_g, 5);
-	RestorePrologue(FUNC_ProcessLineOfSight, prologue_p, 5);
-	RestorePrologue(FUNC_IsLineOfSightClear, prologue_pp, 5);
-	RestorePrologue(FUNC_GetBonePosition, prologue, 5); 
-	RestorePrologue(FUNC_GetTransformedBonePosition, prologue_t, 5);
-	RestorePrologue(FUNC_FindGroundZForCoord, prologue_c, 5);
-	RestorePrologue(FUNC_FindGroundZFor3DCoord, prologue_c3, 5);
 	if (flt.installed || OriginalApcDispatcher != nullptr) // Снимаем APC обработчик если он был включен
 	{
 		flt.installed = false; // меняем флаг на "APC обработчик выключен" для возможности повторной установки
