@@ -407,7 +407,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 				DWORD luaHook = scn.FindPattern("client.dll", pattern, mask);
 				if (luaHook != NULL)
 				{
-					callCheckUTF8BOMAndUpdate = (ptrCheckUTF8BOMAndUpdate)luaHook;
 					MH_CreateHook((PVOID)luaHook, &CheckUTF8BOMAndUpdate, reinterpret_cast<PVOID*>(&callCheckUTF8BOMAndUpdate));
 					Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
 				}
@@ -420,7 +419,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 				DWORD Hook = scn.FindPattern("client.dll", pattern, mask);
 				if (Hook != NULL)
 				{
-					callCheckUTF8BOMAndUpdate = (ptrCheckUTF8BOMAndUpdate)Hook;
 					MH_CreateHook((PVOID)Hook, &TriggerServerEvent, reinterpret_cast<PVOID*>(&callTriggerServerEvent));
 					Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
 				}

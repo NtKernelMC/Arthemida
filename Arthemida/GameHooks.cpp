@@ -26,8 +26,7 @@ void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_add
 void* __fastcall GameHooks::GetCustomData(CClientEntity* ECX, void* EDX, const char* szName, bool bInheritData, bool* pbIsSynced)
 {
     GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
-    void* rslt = ptrGetCustomData(ECX, szName, bInheritData, pbIsSynced);
-    return rslt;
+    return ptrGetCustomData(ECX, szName, bInheritData, pbIsSynced);
 }
 void __fastcall GameHooks::SetCustomData(CClientEntity* ECX, void* EDX, const char* szName, void* Variable, bool bSynchronized)
 {
@@ -43,12 +42,10 @@ const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, floa
 bool __cdecl GameHooks::CheckUTF8BOMAndUpdate(char** pcpOutBuffer, unsigned int* puiOutSize)
 {
     GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
-    bool rslt = callCheckUTF8BOMAndUpdate(pcpOutBuffer, puiOutSize);
-    return rslt;
+    return callCheckUTF8BOMAndUpdate(pcpOutBuffer, puiOutSize);
 }
 bool __cdecl GameHooks::TriggerServerEvent(const char* szName, CClientEntity* CallWithEntity, void* Arguments)
 {
     GameHooks::CheckIfReturnIsLegit(__FUNCTION__, _ReturnAddress());
-    bool rslt = callTriggerServerEvent(szName, CallWithEntity, Arguments);
-    return rslt;
+    return callTriggerServerEvent(szName, CallWithEntity, Arguments);
 }
