@@ -12,7 +12,7 @@
 #include <map>
 namespace ART_LIB
 {
-	class ArtemisLibrary
+	class GameHooks
 	{
 	public:
 		enum class DetectionType
@@ -25,7 +25,6 @@ namespace ART_LIB
 			ART_MANUAL_MAP = 6,
 			ART_MEMORY_CHANGED = 7
 		};
-		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 		struct ARTEMIS_DATA
 		{
 			PVOID baseAddr;
@@ -37,6 +36,7 @@ namespace ART_LIB
 			std::tuple<PVOID, PCONTEXT, const char*> ApcInfo;
 		};
 		typedef void(__stdcall* ArtemisCallback)(ARTEMIS_DATA* artemis);
+		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 		struct ArtemisConfig
 		{
 			HANDLE hSelfModule = nullptr;
@@ -61,6 +61,10 @@ namespace ART_LIB
 			bool DetectMemoryPatch = false;
 			std::vector<std::string> ModulesWhitelist;
 		};
+	};
+	class ArtemisLibrary : public GameHooks
+	{
+	public:
 		static bool __stdcall DisableArtemis(void);
 		static ArtemisLibrary* __cdecl ReloadArtemis(ArtemisConfig* cfg);
 		static void __stdcall CheckLauncher(ArtemisConfig* cfg);

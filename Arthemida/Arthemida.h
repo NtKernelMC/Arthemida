@@ -20,6 +20,7 @@ namespace ART_LIB
 		static void __stdcall MemoryScanner(ArtemisConfig* cfg);
 		static bool __stdcall InstallGameHooks(ArtemisConfig* cfg);
 		static bool __stdcall DeleteGameHooks(void);
+		// Static Export
 		static bool __stdcall DisableArtemis(void);
 		static ArtemisLibrary* __cdecl ReloadArtemis(ArtemisConfig* cfg);
 		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
