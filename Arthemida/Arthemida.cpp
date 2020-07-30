@@ -363,7 +363,7 @@ NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICO
 	{
 		Utils::LogInFile(ARTEMIS_LOG, "[LdrLoadDll] client.dll module was been successfully loaded!\nInstalling game hooks...\n");
 		client_dll = *ModuleHandle; // Передаем хэндл модуля в наш хук LdrUnloadDll чтобы можно было распознавать выгрузку client.dll
-		ART_LIB::ArtemisLibrary::InstallGameHooks(cfg);
+		ART_LIB::ArtemisLibrary::InstallGameHooks(cfg); // устанавливаем наши игровые хуки
 	}
 	return rslt;
 }
@@ -546,7 +546,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	}
 	if (cfg->DetectAPC || cfg->DetectReturnAddresses) // Менеджер управляющий процессом распределения установки хуков
 	{
-		GameHooks::InstallModuleHooks(cfg); // ставим ntdll.dll хуки на загрузку и выгрузку client.dll модуля для контроля за всеми нашими хуков
+		GameHooks::InstallModuleHooks(cfg); // ставим ntdll.dll хуки на загрузку и выгрузку client.dll модуля для контроля за всеми нашими хуками
 	}
 	if (cfg->DetectManualMap) // Детектор мануал маппинга
 	{

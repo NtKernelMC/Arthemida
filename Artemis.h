@@ -61,8 +61,8 @@ namespace ART_LIB
 			bool DetectMemoryPatch = false;
 			std::vector<std::string> ModulesWhitelist;
 		};
-		static bool __stdcall DisableArtemis(void);
 		static ArtemisLibrary* __cdecl ReloadArtemis(ArtemisConfig* cfg);
+		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
 	};
 };
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); 
