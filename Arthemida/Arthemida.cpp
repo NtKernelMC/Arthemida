@@ -364,6 +364,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
 			while (!GetModuleHandleA("client.dll")) { Sleep(1000); } // Дожидаемся загрузки клиента
+			GameHooks::cfg = cfg; // копируем указатель в наш класс по работе с детектом адресов возвратов в хуках для связи с коллбэком артемиды
 			auto AddEventHandlerHook = []() -> void
 			{
 				const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };

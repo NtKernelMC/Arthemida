@@ -1,4 +1,5 @@
 #include "GameHooks.h"
+GameHooks::ArtemisConfig* GameHooks::cfg = nullptr;
 GameHooks::ptrAddEventHandler GameHooks::callAddEventHandler = nullptr;
 GameHooks::callGetCustomData GameHooks::ptrGetCustomData = (GameHooks::callGetCustomData)0x0;
 GameHooks::callSetCustomData GameHooks::ptrSetCustomData = (GameHooks::callSetCustomData)0x0;
@@ -16,8 +17,22 @@ void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_add
 	vector<string> allowedModules = { "client.dll", "multiplayer_sa.dll", "game_sa.dll", 
 	"core.dll", "gta_sa.exe", "proxy_sa.exe", "lua5.1c.dll", "pcre3.dll" };
     string moduleName = Utils::GetNameOfModuledAddressSpace(return_address, Utils::GenerateModuleNamesList());
-	if (!Utils::IsVecContain2(allowedModules, moduleName))
+	if (!Utils::IsVecContain2(allowedModules, moduleName) && !Utils::IsVecContain(cfg->ExcludedMethods, return_address))
 	{
+        typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
+        LPFN_GetMappedFileNameA g_GetMappedFileNameA = nullptr; HMODULE hPsapi = LoadLibraryA("psapi.dll");
+        g_GetMappedFileNameA = (LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA");
+        char MappedName[256]; memset(MappedName, 0, sizeof(MappedName));
+        g_GetMappedFileNameA(GetCurrentProcess(), (PVOID)return_address, MappedName, sizeof(MappedName));
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        MEMORY_BASIC_INFORMATION mme{ 0 }; ARTEMIS_DATA data; // объявление объектов временных структур
+        VirtualQueryEx(GetCurrentProcess(), return_address, &mme, 5); // Получение подробной информации по региону памяти
+        data.baseAddr = (LPVOID)return_address; // Запись базового адреса региона памяти
+        data.MemoryRights = mme.AllocationProtect; // Запись прав доступа к региону памяти
+        data.regionSize = mme.RegionSize; // Запись размера региона памяти
+        data.type = DetectionType::ART_RETURN_ADDRESS; // Выставление типа детекта
+        data.dllName = moduleName; data.dllPath = MappedName; // Наименование модуля и путь к нему
+        cfg->callback(&data); cfg->ExcludedMethods.push_back(return_address); // вызываем коллбэк артемиды и добавляем срабатывание в анти-флуд
 #ifdef ARTEMIS_DEBUG
 		Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X in to module %s\n", function_name, return_address, moduleName.c_str());
 #endif

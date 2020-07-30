@@ -44,6 +44,7 @@ namespace ART_LIB
 			LPFN_GetMappedFileNameA lpGetMappedFileNameA = nullptr;
 			ArtemisCallback callback = nullptr;
 			std::vector<PVOID> ExcludedThreads;
+			std::vector<PVOID> ExcludedMethods;
 			bool DetectThreads = false;
 			volatile bool ThreadScanner = false;
 			volatile bool ModuleScanner = false;
