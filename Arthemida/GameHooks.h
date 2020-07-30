@@ -60,7 +60,11 @@ public:
 		bool DetectMemoryPatch = false;
 		std::vector<std::string> ModulesWhitelist;
 	};
-	static ArtemisConfig* cfg;
+	static ArtemisConfig* cfg; static HMODULE client_dll; 
+	typedef NTSTATUS(__stdcall* ptrLdrLoadDll)(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle);
+	static ptrLdrLoadDll callLdrLoadDll;
+	typedef NTSTATUS(__stdcall* ptrLdrUnloadDll)(HMODULE ModuleHandle);
+	static ptrLdrUnloadDll callLdrUnloadDll;
     static void CheckIfReturnIsLegit(const char* function_name, PVOID return_address);
 	typedef bool(__cdecl* ptrAddEventHandler)(CLuaMain* LuaMain, const char* szName, CClientEntity* Entity,
 	const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, float fPriorityMod);
@@ -73,10 +77,13 @@ public:
 	static ptrCheckUTF8BOMAndUpdate callCheckUTF8BOMAndUpdate;
 	typedef bool (__cdecl* ptrTriggerServerEvent)(const char* szName, CClientEntity* CallWithEntity, void* Arguments);
 	static ptrTriggerServerEvent callTriggerServerEvent;
+	static NTSTATUS __stdcall LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle);
+	static NTSTATUS __stdcall LdrUnloadDll(HMODULE ModuleHandle);
 	static bool __cdecl CheckUTF8BOMAndUpdate(char** pcpOutBuffer, unsigned int* puiOutSize);
 	static void* __fastcall GetCustomData(CClientEntity* ECX, void* EDX, const char* szName, bool bInheritData, bool* pbIsSynced);
 	static void __fastcall SetCustomData(CClientEntity* ECX, void* EDX, const char* szName, void* Variable, bool bSynchronized = true);
 	static bool __cdecl AddEventHandler(CLuaMain* LuaMain, const char* szName, CClientEntity* Entity,
 	const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, float fPriorityMod);
 	static bool __cdecl TriggerServerEvent(const char* szName, CClientEntity* CallWithEntity, void* Arguments);
+	static bool __stdcall InstallModuleHooks(ArtemisConfig *cfg);
 };

@@ -352,10 +352,65 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisConfig* cfg)
 	}
 	return true; // даем знать что APC обработчик был успешно установлен
 }
+HMODULE GameHooks::client_dll = nullptr;
+GameHooks::ptrLdrLoadDll GameHooks::callLdrLoadDll = nullptr;
+GameHooks::ptrLdrUnloadDll GameHooks::callLdrUnloadDll = nullptr;
+NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle)
+{
+	NTSTATUS rslt = callLdrLoadDll(PathToFile, FlagsL, ModuleFileName, ModuleHandle);
+	std::wstring ModulePath(ModuleFileName->Buffer, ModuleFileName->Length);
+	if (ModulePath.find(L"client.dll") != std::wstring::npos && client_dll == nullptr) // если клиент длл загрузилась - ставим все наши хуки
+	{
+		Utils::LogInFile(ARTEMIS_LOG, "[LdrLoadDll] client.dll module was been successfully loaded!\nInstalling game hooks...\n");
+		client_dll = *ModuleHandle; // Передаем хэндл модуля в наш хук LdrUnloadDll чтобы можно было распознавать выгрузку client.dll
+		ART_LIB::ArtemisLibrary::InstallGameHooks(cfg);
+	}
+	return rslt;
+}
+NTSTATUS __stdcall GameHooks::LdrUnloadDll(HMODULE ModuleHandle)
+{
+	NTSTATUS rslt = callLdrUnloadDll(ModuleHandle);
+	if (ModuleHandle == client_dll) // если client.dll была выгружена то обнуляем её хендл для возможности повторной установки хуков
+	{
+		Utils::LogInFile(ARTEMIS_LOG, "[LdrUnloadDll] client.dll module was been successfully unloaded.\nAll game-hooks are excluded!\n");
+		client_dll = nullptr; // Даем сигнал в наш LdrLoadDll хук что client.dll была выгружена и при повторной загрузке, можно ставить хуки вновь
+	}
+	return rslt;
+}
+bool __stdcall GameHooks::InstallModuleHooks(ArtemisConfig* cfg) // Hook Controller
+{
+	if (cfg == nullptr) return false;
+	auto ErrorHook = [](const char* log) -> bool
+	{
+		Utils::LogInFile(ARTEMIS_LOG, log);
+		return false;
+	};
+	DWORD ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll");
+	if (ldrAddr != NULL)
+	{
+		MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrLoadDll, reinterpret_cast<PVOID*>(&callLdrLoadDll));
+		if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
+		Utils::LogInFile(ARTEMIS_LOG, "[Success] LdrLoadDll Hook installed!\n");
+		else return ErrorHook("[Error] LdrLoadDll Hook not installed.\n");
+	}
+	else return ErrorHook("[Error] LdrLoadDll Hook not installed.\n");
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrUnloadDll");
+	if (ldrAddr != NULL)
+	{
+		MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrUnloadDll, reinterpret_cast<PVOID*>(&callLdrUnloadDll));
+		if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
+		Utils::LogInFile(ARTEMIS_LOG, "[Success] LdrUnloadDll Hook installed!\n");
+		else return ErrorHook("[Error] LdrUnloadDll Hook not installed.\n");
+	}
+	else return ErrorHook("[Error] LdrUnloadDll Hook not installed.\n");
+	return true;
+};
 bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return false;
-	if (MH_Initialize() == MH_OK) // инициализация минхука для возможности установки хуков
+	MH_STATUS mhs = MH_Initialize(); // инициализация минхука для возможности установки хуков
+	if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_INITIALIZED) 
 	{
 		if (cfg->DetectAPC) // если указана опция античита проверять APC инъекции то ставим обработчик
 		{
@@ -363,8 +418,6 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		}
 		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 		{
-			while (!GetModuleHandleA("client.dll")) { Sleep(1000); } // Дожидаемся загрузки клиента
-			GameHooks::cfg = cfg; // копируем указатель в наш класс по работе с детектом адресов возвратов в хуках для связи с коллбэком артемиды
 			auto AddEventHandlerHook = []() -> void
 			{
 				const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };
@@ -437,7 +490,9 @@ bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 	{
 		flt.installed = false; // меняем флаг на "APC обработчик выключен" для возможности повторной установки
 	}
-	MH_DisableHook(MH_ALL_HOOKS); // снимаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
+	// Снимаем все хуки кроме тех что в ntdll.dll контролируют выгрузку client.dll
+	MH_DisableHook(callAddEventHandler); MH_DisableHook(ptrSetCustomData); MH_DisableHook(ptrGetCustomData);
+	MH_DisableHook(callTriggerServerEvent); MH_DisableHook(callCheckUTF8BOMAndUpdate); 
 	MH_Uninitialize(); // деинициализация минхука для возможности его повторного использования после перезапуска античита
 	return true; // даем знать что все хуки были безопасно сняты и можно приступать к отключению античита
 }
@@ -468,6 +523,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
 	static ART_LIB::ArtemisLibrary art_lib;
+	GameHooks::cfg = cfg; // копируем указатель конфига артемиды для связи с внешними хуками
 	if (cfg->DetectFakeLaunch) // Детект лаунчера (должен запускаться в первую очередь)
 	{
 		ART_LIB::ArtemisLibrary::CheckLauncher(cfg);
@@ -490,8 +546,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	}
 	if (cfg->DetectAPC || cfg->DetectReturnAddresses) // Менеджер управляющий процессом распределения установки хуков
 	{
-		std::thread CreateGameHooks(ART_LIB::ArtemisLibrary::InstallGameHooks, cfg);
-		CreateGameHooks.detach();
+		GameHooks::InstallModuleHooks(cfg); // ставим ntdll.dll хуки на загрузку и выгрузку client.dll модуля для контроля за всеми нашими хуков
 	}
 	if (cfg->DetectManualMap) // Детектор мануал маппинга
 	{
