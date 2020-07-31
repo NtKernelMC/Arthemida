@@ -12,7 +12,7 @@
 #include <map>
 namespace ART_LIB
 {
-	class GameHooks
+	class ArtemisLibrary
 	{
 	public:
 		enum class DetectionType
@@ -62,12 +62,7 @@ namespace ART_LIB
 			std::vector<std::string> ModulesWhitelist;
 		};
 	};
-	class ArtemisLibrary : public GameHooks
-	{
-	public:
-		static bool __stdcall DisableArtemis(void);
-		static ArtemisLibrary* __cdecl ReloadArtemis(ArtemisConfig* cfg);
-		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
-	};
 };
-ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); 
+bool __cdecl DisableArtemis();
+ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
+ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
