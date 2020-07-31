@@ -356,6 +356,7 @@ GameHooks::ptrLdrLoadDll GameHooks::callLdrLoadDll = nullptr;
 GameHooks::ptrLdrUnloadDll GameHooks::callLdrUnloadDll = nullptr;
 NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle)
 {
+	NTSTATUS rslt = callLdrLoadDll(PathToFile, FlagsL, ModuleFileName, ModuleHandle);
 	std::wstring ModulePath(ModuleFileName->Buffer, ModuleFileName->Length); 
 	if (ModulePath.find(L"client.dll") != std::wstring::npos) // если клиент длл загрузилась - ставим все наши хуки
 	{
@@ -364,7 +365,6 @@ NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICO
 #endif
 		ART_LIB::ArtemisLibrary::InstallGameHooks(g_cfg); // устанавливаем наши игровые хуки
 	}
-	NTSTATUS rslt = callLdrLoadDll(PathToFile, FlagsL, ModuleFileName, ModuleHandle);
 	return rslt;
 }
 NTSTATUS __stdcall GameHooks::LdrUnloadDll(HMODULE ModuleHandle)
