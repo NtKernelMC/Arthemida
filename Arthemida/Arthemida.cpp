@@ -28,7 +28,7 @@
 #pragma warning(disable : 4244)
 #include "GameHooks.h"
 #include "Arthemida.h"
-SigScan scn;
+SigScan scn; bool WasReloaded = false;
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); // прототипирование
 typedef struct
 {
@@ -534,7 +534,8 @@ bool __cdecl DisableArtemis() // Метод отключения античит�
 	if (ART_LIB::ArtemisLibrary::DeleteGameHooks())
 	{
 #ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, "Artemis Library unloaded.\n");
+		if (!WasReloaded) Utils::LogInFile(ARTEMIS_LOG, "Artemis Library unloaded.\n");
+		else Utils::LogInFile(ARTEMIS_LOG, "Reloading Artemis Library...\n");
 #endif
 		return true; // заботимся о снятии всех хуков и обработчиков чтобы избежать краша после отключения античита
 	}
@@ -543,9 +544,9 @@ bool __cdecl DisableArtemis() // Метод отключения античит�
 ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg) // Метод для удобного перезапуска античита
 {
 	if (cfg == nullptr) return nullptr; 
+	WasReloaded = true;
 	if (DisableArtemis()) // безопасное отключение античита
 	{
-		cfg->WasReloaded = true;
 		ART_LIB::ArtemisLibrary* art_lib = alInitializeArtemis(cfg); // запускаем античит повторно
 		return art_lib; // возращаем двухуровневый указатель на оригинал содержащий настройки античита
 	}
@@ -555,7 +556,8 @@ ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisC
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig *cfg)
 {
 #ifdef ARTEMIS_DEBUG
-	if (!cfg->WasReloaded) DeleteFileA(ARTEMIS_LOG);
+	if (!WasReloaded) DeleteFileA(ARTEMIS_LOG);
+	else WasReloaded = false;
 	Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
 #endif
 	if (cfg == nullptr) return nullptr;
