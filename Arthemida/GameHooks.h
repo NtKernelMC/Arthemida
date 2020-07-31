@@ -15,6 +15,7 @@ public:
 	typedef void CClientEntity;
 	typedef void CLuaFunctionRef;
 	typedef void CLuaMain;
+	static HMODULE client_dll; 
 	typedef NTSTATUS(__stdcall* ptrLdrLoadDll)(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle);
 	static ptrLdrLoadDll callLdrLoadDll;
 	typedef NTSTATUS(__stdcall* ptrLdrUnloadDll)(HMODULE ModuleHandle);
