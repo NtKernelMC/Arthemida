@@ -2,6 +2,10 @@
 #define ARTEMIS_DEBUG
 #ifdef ARTEMIS_DEBUG
 #define ARTEMIS_LOG "!0_ArtemisDebug.log"
+#define ARTEMIS_LDR_SUCCESS "[Success] LdrLoadDll Hook installed!\n"
+#define ARTEMIS_LDR_SUCCESS2 "[Success] LdrUnloadDll Hook installed!\n"
+#define ARTEMIS_LDR_ERROR "[Error] LdrLoadDll Hook not installed.\n"
+#define ARTEMIS_LDR_ERROR2 "[Error] LdrUnloadDll Hook not installed.\n"
 #endif
 #include <Windows.h>
 #include <stdio.h>

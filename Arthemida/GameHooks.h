@@ -8,7 +8,6 @@ using namespace ART_LIB;
 class GameHooks 
 {
 public:
-	GameHooks();
     typedef void CWeapon;
     typedef void CVehicle;
     typedef void CColPoint;

@@ -4,13 +4,6 @@ GameHooks::callGetCustomData GameHooks::ptrGetCustomData = (GameHooks::callGetCu
 GameHooks::callSetCustomData GameHooks::ptrSetCustomData = (GameHooks::callSetCustomData)0x0;
 GameHooks::ptrCheckUTF8BOMAndUpdate GameHooks::callCheckUTF8BOMAndUpdate = (GameHooks::ptrCheckUTF8BOMAndUpdate)0x0;
 GameHooks::ptrTriggerServerEvent GameHooks::callTriggerServerEvent = (GameHooks::ptrTriggerServerEvent)0x0;
-GameHooks::GameHooks()
-{
-#ifdef ARTEMIS_DEBUG
-    DeleteFileA(ARTEMIS_LOG);
-    Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
-#endif
-}
 void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_address)
 {
 	vector<string> allowedModules = { "client.dll", "multiplayer_sa.dll", "game_sa.dll", 
