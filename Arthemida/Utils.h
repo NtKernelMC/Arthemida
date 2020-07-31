@@ -6,6 +6,7 @@
 #define ARTEMIS_LDR_SUCCESS2 "[Success] LdrUnloadDll Hook installed!\n"
 #define ARTEMIS_LDR_ERROR "[Error] LdrLoadDll Hook not installed.\n"
 #define ARTEMIS_LDR_ERROR2 "[Error] LdrUnloadDll Hook not installed.\n"
+#define ARTEMIS_LDR_ERROR3 "[Error] MinHook is not initialized.\n"
 #endif
 #include <Windows.h>
 #include <stdio.h>

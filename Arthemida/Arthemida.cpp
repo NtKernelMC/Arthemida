@@ -365,7 +365,7 @@ NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICO
 		Utils::LogInFile(ARTEMIS_LOG, "[LdrLoadDll] client.dll module was been successfully loaded!\nInstalling game hooks...\n");
 #endif
 		client_dll = *ModuleHandle; // Передаем хэндл модуля в наш хук LdrUnloadDll чтобы можно было распознавать выгрузку client.dll
-		//ART_LIB::ArtemisLibrary::InstallGameHooks(cfg); // устанавливаем наши игровые хуки
+		ART_LIB::ArtemisLibrary::InstallGameHooks(g_cfg); // устанавливаем наши игровые хуки
 	}
 	return rslt;
 }
@@ -390,127 +390,135 @@ bool __stdcall GameHooks::InstallModuleHooks(void) // Hook Controller
 #endif
 		return false;
 	};
-	DWORD ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll");
-	if (ldrAddr != NULL)
+	MH_STATUS mhs = MH_Initialize(); // инициализация минхука для возможности установки хуков
+	if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_INITIALIZED)
 	{
-		MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrLoadDll, reinterpret_cast<PVOID*>(&callLdrLoadDll));
-		if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
+		DWORD ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll");
+		if (ldrAddr != NULL)
+		{
+			MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrLoadDll, reinterpret_cast<PVOID*>(&callLdrLoadDll));
+			if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
+			{
+				MH_EnableHook((PVOID)ldrAddr);
 #ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS);
+				Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS);
 #endif
+			}
+			else return ErrorHook(ARTEMIS_LDR_ERROR);
+		}
 		else return ErrorHook(ARTEMIS_LDR_ERROR);
-	}
-	else return ErrorHook(ARTEMIS_LDR_ERROR);
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////
-	ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrUnloadDll");
-	if (ldrAddr != NULL)
-	{
-		MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrUnloadDll, reinterpret_cast<PVOID*>(&callLdrUnloadDll));
-		if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////
+		ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrUnloadDll");
+		if (ldrAddr != NULL)
+		{
+			MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrUnloadDll, reinterpret_cast<PVOID*>(&callLdrUnloadDll));
+			if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
+			{
+				MH_EnableHook((PVOID)ldrAddr);
 #ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS);
+				Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS2);
 #endif
+			}
+			else return ErrorHook(ARTEMIS_LDR_ERROR2);
+		}
 		else return ErrorHook(ARTEMIS_LDR_ERROR2);
 	}
-	else return ErrorHook(ARTEMIS_LDR_ERROR2);
+	else return ErrorHook(ARTEMIS_LDR_ERROR3);
 	return true;
 };
 bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return false;
-	MH_STATUS mhs = MH_Initialize(); // инициализация минхука для возможности установки хуков
-	if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_INITIALIZED) 
+	if (cfg->DetectAPC) // если указана опция античита проверять APC инъекции то ставим обработчик
 	{
-		if (cfg->DetectAPC) // если указана опция античита проверять APC инъекции то ставим обработчик
-		{
-			if (!InstallApcDispatcher(cfg)) return false; // Вызываем установщик APC обрабочтика который ставит хук и производит заполнение APC-списка
-		}
-		if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
-		{
-			auto AddEventHandlerHook = []() -> void
-			{
-				const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };
-				const char mask[] = { "xxxxxxxxxxxxxxxxxx?????xx????xxxx" };
-			    DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
-				if (Addr != NULL)
-				{
-					MH_CreateHook((PVOID)Addr, &GameHooks::AddEventHandler, reinterpret_cast<PVOID*>(&GameHooks::callAddEventHandler));
-#ifdef ARTEMIS_DEBUG
-					Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler Hook installed!\n");
-#endif
-				}
-#ifdef ARTEMIS_DEBUG
-				else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler - Can`t find sig.\n");
-#endif
-			};
-			AddEventHandlerHook(); // Используется читерами для отключения клиентских событий
-			auto ElementDataHook = []() -> void
-			{
-				const char pattern[] = { "\x55\x8B\xEC\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x81\xEC\xB4\x00\x00\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\xF0\x56" };
-				const char mask[] = { "xxxxxx????xxxxxxxxxxxxxx????xxxxxx" }; 
-				DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
-				if (Addr != NULL)
-				{
-					MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrSetCustomData));
-#ifdef ARTEMIS_DEBUG
-					Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData Hook installed!\n");
-#endif
-				}
-#ifdef ARTEMIS_DEBUG
-				else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
-#endif
-				//////////////////////////////////////////////////////////////////////////////////////
-				const char pattern2[] = { "\x55\x8B\xEC\x53\x8A\x5D\x0C" };
-				const char mask2[] = { "xxxxxxx" };
-				Addr = scn.FindPattern("client.dll", pattern2, mask2);
-				if (Addr != NULL)
-				{
-					MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrGetCustomData));
-#ifdef ARTEMIS_DEBUG
-					Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData Hook installed!\n");
-#endif
-				}
-#ifdef ARTEMIS_DEBUG
-				else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData - Can`t find sig.\n");
-#endif
-			};
-			ElementDataHook(); // Используется читерами для получения списка элемент дат в луа скриптах (setElementData/getElementData)
-			auto InstallLuaHook = []()
-			{
-				const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\xFF\x36\xFF\x37\xE8\x00\x00\x00\x00\x83\xC4\x08\x84\xC0\x74\x0C\x83\x07\x03\xB0\x01\x83\x06\xFD\x5F\x5E\x5D\xC3" };
-				const char mask[] = { "xxxxxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxx" }; 
-				DWORD luaHook = scn.FindPattern("client.dll", pattern, mask);
-				if (luaHook != NULL)
-				{
-					MH_CreateHook((PVOID)luaHook, &GameHooks::CheckUTF8BOMAndUpdate, reinterpret_cast<PVOID*>(&GameHooks::callCheckUTF8BOMAndUpdate));
-#ifdef ARTEMIS_DEBUG
-					Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
-#endif
-				}
-#ifdef ARTEMIS_DEBUG
-				else Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Can`t find sig.\n");
-#endif
-			}; InstallLuaHook(); // Используется читерами для инжекта lua скриптов в самой новой версии FireFest мультичита
-			auto InstallServerEventsHook = []()
-			{
-				const char pattern[] = { "\x55\x8B\xEC\x51\x53\x56\x57\x8B\x7D\x08\x85" };
-				const char mask[] = { "xxxxxxxxxxx" };
-				DWORD Hook = scn.FindPattern("client.dll", pattern, mask);
-				if (Hook != NULL)
-				{
-					MH_CreateHook((PVOID)Hook, &GameHooks::TriggerServerEvent, reinterpret_cast<PVOID*>(&GameHooks::callTriggerServerEvent));
-#ifdef ARTEMIS_DEBUG
-					Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
-#endif
-				}
-#ifdef ARTEMIS_DEBUG
-				else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Can`t find sig.\n");
-#endif
-			}; InstallServerEventsHook(); // Используется читерами для получения списка серверных событий
-		}
-		MH_EnableHook(MH_ALL_HOOKS); // включаем все наши хуки (используем общий флаг т.к хуков много и указывать их по одному безрассудно)
+		if (!InstallApcDispatcher(cfg)) return false; // Вызываем установщик APC обрабочтика который ставит хук и производит заполнение APC-списка
 	}
-	else return false; // информируем что произошла ошибка в установке перехвата
+	if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
+	{
+		auto AddEventHandlerHook = []() -> void
+		{
+			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };
+			const char mask[] = { "xxxxxxxxxxxxxxxxxx?????xx????xxxx" };
+			DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
+			if (Addr != NULL)
+			{
+				MH_CreateHook((PVOID)Addr, &GameHooks::AddEventHandler, reinterpret_cast<PVOID*>(&GameHooks::callAddEventHandler));
+#ifdef ARTEMIS_DEBUG
+				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler Hook installed!\n");
+#endif
+			}
+#ifdef ARTEMIS_DEBUG
+			else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler - Can`t find sig.\n");
+#endif
+		};
+		AddEventHandlerHook(); // Используется читерами для отключения клиентских событий
+		auto ElementDataHook = []() -> void
+		{
+			const char pattern[] = { "\x55\x8B\xEC\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x81\xEC\xB4\x00\x00\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\xF0\x56" };
+			const char mask[] = { "xxxxxx????xxxxxxxxxxxxxx????xxxxxx" }; 
+			DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
+			if (Addr != NULL)
+			{
+				MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrSetCustomData));
+#ifdef ARTEMIS_DEBUG
+				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData Hook installed!\n");
+#endif
+			}
+#ifdef ARTEMIS_DEBUG
+			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
+#endif
+			//////////////////////////////////////////////////////////////////////////////////////
+			const char pattern2[] = { "\x55\x8B\xEC\x53\x8A\x5D\x0C" };
+			const char mask2[] = { "xxxxxxx" };
+			Addr = scn.FindPattern("client.dll", pattern2, mask2);
+			if (Addr != NULL)
+			{
+				MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrGetCustomData));
+#ifdef ARTEMIS_DEBUG
+				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData Hook installed!\n");
+#endif
+			}
+#ifdef ARTEMIS_DEBUG
+			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData - Can`t find sig.\n");
+#endif
+		};
+		ElementDataHook(); // Используется читерами для получения списка элемент дат в луа скриптах (setElementData/getElementData)
+		auto InstallLuaHook = []()
+		{
+			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\xFF\x36\xFF\x37\xE8\x00\x00\x00\x00\x83\xC4\x08\x84\xC0\x74\x0C\x83\x07\x03\xB0\x01\x83\x06\xFD\x5F\x5E\x5D\xC3" };
+			const char mask[] = { "xxxxxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxx" }; 
+			DWORD luaHook = scn.FindPattern("client.dll", pattern, mask);
+			if (luaHook != NULL)
+			{
+				MH_CreateHook((PVOID)luaHook, &GameHooks::CheckUTF8BOMAndUpdate, reinterpret_cast<PVOID*>(&GameHooks::callCheckUTF8BOMAndUpdate));
+#ifdef ARTEMIS_DEBUG
+				Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
+#endif
+			}
+#ifdef ARTEMIS_DEBUG
+			else Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Can`t find sig.\n");
+#endif
+		}; InstallLuaHook(); // Используется читерами для инжекта lua скриптов в самой новой версии FireFest мультичита
+		auto InstallServerEventsHook = []()
+		{
+			const char pattern[] = { "\x55\x8B\xEC\x51\x53\x56\x57\x8B\x7D\x08\x85" };
+			const char mask[] = { "xxxxxxxxxxx" };
+			DWORD Hook = scn.FindPattern("client.dll", pattern, mask);
+			if (Hook != NULL)
+			{
+				MH_CreateHook((PVOID)Hook, &GameHooks::TriggerServerEvent, reinterpret_cast<PVOID*>(&GameHooks::callTriggerServerEvent));
+#ifdef ARTEMIS_DEBUG
+				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
+#endif
+			}
+#ifdef ARTEMIS_DEBUG
+			else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Can`t find sig.\n");
+#endif
+		}; InstallServerEventsHook(); // Используется читерами для получения списка серверных событий
+	}
+	// включаем все наши игровые хуки 
+	MH_EnableHook(GameHooks::callAddEventHandler); MH_EnableHook(GameHooks::ptrSetCustomData); MH_EnableHook(GameHooks::ptrGetCustomData);
+	MH_EnableHook(GameHooks::callTriggerServerEvent); MH_EnableHook(GameHooks::callCheckUTF8BOMAndUpdate);
 	return true; // даем знать что все хуки и обработчики установлены успешно
 }
 bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
@@ -549,6 +557,10 @@ ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisC
 // Инициализация библиотеки
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig *cfg)
 {
+#ifdef ARTEMIS_DEBUG
+	DeleteFileA(ARTEMIS_LOG);
+	Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
+#endif
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
 	static ART_LIB::ArtemisLibrary art_lib;
@@ -583,9 +595,5 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
 		MmapThread.detach(); // Запуск асинхронного cканера для поиска смапленных образов DLL-библиотек
 	}
-#ifdef ARTEMIS_DEBUG
-	DeleteFileA(ARTEMIS_LOG);
-	Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
-#endif
 	return &art_lib;
 }
