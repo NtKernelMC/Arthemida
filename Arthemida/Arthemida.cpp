@@ -399,7 +399,6 @@ bool __stdcall GameHooks::InstallModuleHooks(void) // Hook Controller
 			MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrLoadDll, reinterpret_cast<PVOID*>(&callLdrLoadDll));
 			if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
 			{
-				MH_EnableHook((PVOID)ldrAddr);
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS);
 #endif
@@ -414,7 +413,6 @@ bool __stdcall GameHooks::InstallModuleHooks(void) // Hook Controller
 			MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrUnloadDll, reinterpret_cast<PVOID*>(&callLdrUnloadDll));
 			if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
 			{
-				MH_EnableHook((PVOID)ldrAddr);
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS2);
 #endif
@@ -424,6 +422,7 @@ bool __stdcall GameHooks::InstallModuleHooks(void) // Hook Controller
 		else return ErrorHook(ARTEMIS_LDR_ERROR2);
 	}
 	else return ErrorHook(ARTEMIS_LDR_ERROR3);
+	MH_EnableHook(MH_ALL_HOOKS);
 	return true;
 };
 bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
@@ -517,8 +516,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
 		}; InstallServerEventsHook(); // Используется читерами для получения списка серверных событий
 	}
 	// включаем все наши игровые хуки 
-	MH_EnableHook(GameHooks::callAddEventHandler); MH_EnableHook(GameHooks::ptrSetCustomData); MH_EnableHook(GameHooks::ptrGetCustomData);
-	MH_EnableHook(GameHooks::callTriggerServerEvent); MH_EnableHook(GameHooks::callCheckUTF8BOMAndUpdate);
+	MH_EnableHook(MH_ALL_HOOKS);
 	return true; // даем знать что все хуки и обработчики установлены успешно
 }
 bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
@@ -527,9 +525,7 @@ bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
 	{
 		flt.installed = false; // меняем флаг на "APC обработчик выключен" для возможности повторной установки
 	}
-	// Снимаем все хуки кроме тех что в ntdll.dll контролируют выгрузку client.dll
-	MH_DisableHook(GameHooks::callAddEventHandler); MH_DisableHook(GameHooks::ptrSetCustomData); MH_DisableHook(GameHooks::ptrGetCustomData);
-	MH_DisableHook(GameHooks::callTriggerServerEvent); MH_DisableHook(GameHooks::callCheckUTF8BOMAndUpdate);
+	MH_DisableHook(MH_ALL_HOOKS); // Снимаем все наши хуки
 	MH_Uninitialize(); // деинициализация минхука для возможности его повторного использования после перезапуска античита
 	return true; // даем знать что все хуки были безопасно сняты и можно приступать к отключению античита
 }
@@ -549,6 +545,7 @@ ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisC
 	if (cfg == nullptr) return nullptr; 
 	if (DisableArtemis()) // безопасное отключение античита
 	{
+		cfg->WasReloaded = true;
 		ART_LIB::ArtemisLibrary* art_lib = alInitializeArtemis(cfg); // запускаем античит повторно
 		return art_lib; // возращаем двухуровневый указатель на оригинал содержащий настройки античита
 	}
@@ -558,7 +555,7 @@ ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisC
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig *cfg)
 {
 #ifdef ARTEMIS_DEBUG
-	DeleteFileA(ARTEMIS_LOG);
+	if (!cfg->WasReloaded) DeleteFileA(ARTEMIS_LOG);
 	Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
 #endif
 	if (cfg == nullptr) return nullptr;

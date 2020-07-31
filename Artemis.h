@@ -60,6 +60,7 @@ namespace ART_LIB
 			bool DetectManualMap = false;
 			bool DetectMemoryPatch = false;
 			std::vector<std::string> ModulesWhitelist;
+			bool WasReloaded = false;
 		};
 	};
 };

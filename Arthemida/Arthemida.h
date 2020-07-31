@@ -57,6 +57,7 @@ namespace ART_LIB
 			bool DetectManualMap = false;
 			bool DetectMemoryPatch = false;
 			std::vector<std::string> ModulesWhitelist;
+			bool WasReloaded = false;
 		};
 		static void DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList);
 		static void __stdcall ScanForDllThreads(ArtemisConfig* cfg);
