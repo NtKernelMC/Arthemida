@@ -151,6 +151,7 @@ public:
 	}
 	static bool IsVecContain(const std::vector<PVOID>& source, PVOID element)
 	{
+		if (element == nullptr || source.empty()) return false;
 		for (const auto it : source)
 		{
 			if (it == element) return true;
