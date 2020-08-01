@@ -68,4 +68,4 @@ namespace ART_LIB
 		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
 	};
 };
-static ART_LIB::ArtemisLibrary::ArtemisConfig* g_cfg = nullptr;
+extern ART_LIB::ArtemisLibrary::ArtemisConfig* g_cfg;

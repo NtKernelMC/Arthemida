@@ -38,6 +38,8 @@ typedef struct
 } APC_FILTER, *PAPC_FILTER;
 APC_FILTER flt;
 
+ART_LIB::ArtemisLibrary::ArtemisConfig* g_cfg = nullptr;
+
 extern "C" void __stdcall KiApcStub(); // Работает через ASM, вызывает ApcHandler
 
 // Обработчик APC
