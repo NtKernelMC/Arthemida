@@ -352,32 +352,18 @@ bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisConfig* cfg)
 	}
 	return true; // даем знать что APC обработчик был успешно установлен
 }
-HMODULE GameHooks::client_dll = nullptr;
+
 GameHooks::ptrLdrLoadDll GameHooks::callLdrLoadDll = nullptr;
-GameHooks::ptrLdrUnloadDll GameHooks::callLdrUnloadDll = nullptr;
 NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle)
 {
 	NTSTATUS rslt = callLdrLoadDll(PathToFile, FlagsL, ModuleFileName, ModuleHandle);
 	std::wstring ModulePath(ModuleFileName->Buffer, ModuleFileName->Length);
-	if (ModulePath.find(L"client.dll") != std::wstring::npos && client_dll == nullptr) // если клиент длл загрузилась - ставим все наши хуки
+	if (ModulePath.find(L"client.dll") != std::wstring::npos) // если клиент длл загрузилась - ставим все наши хуки
 	{
 #ifdef ARTEMIS_DEBUG
 		Utils::LogInFile(ARTEMIS_LOG, "[LdrLoadDll] client.dll module was been successfully loaded!\nInstalling game hooks...\n");
 #endif
-		client_dll = *ModuleHandle; // Передаем хэндл модуля в наш хук LdrUnloadDll чтобы можно было распознавать выгрузку client.dll
 		ART_LIB::ArtemisLibrary::InstallGameHooks(g_cfg); // устанавливаем наши игровые хуки
-	}
-	return rslt;
-}
-NTSTATUS __stdcall GameHooks::LdrUnloadDll(HMODULE ModuleHandle)
-{
-	NTSTATUS rslt = callLdrUnloadDll(ModuleHandle);
-	if (ModuleHandle == client_dll) // если client.dll была выгружена то обнуляем её хендл для возможности повторной установки хуков
-	{
-#ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, "[LdrUnloadDll] client.dll module was been successfully unloaded.\nAll game-hooks are excluded!\n");
-#endif
-		client_dll = nullptr; // Даем сигнал в наш LdrLoadDll хук что client.dll была выгружена и при повторной загрузке, можно ставить хуки вновь
 	}
 	return rslt;
 }
@@ -407,19 +393,6 @@ bool __stdcall GameHooks::InstallModuleHooks(void) // Hook Controller
 		}
 		else return ErrorHook(ARTEMIS_LDR_ERROR);
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////
-		ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrUnloadDll");
-		if (ldrAddr != NULL)
-		{
-			MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrUnloadDll, reinterpret_cast<PVOID*>(&callLdrUnloadDll));
-			if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
-			{
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS2);
-#endif
-			}
-			else return ErrorHook(ARTEMIS_LDR_ERROR2);
-		}
-		else return ErrorHook(ARTEMIS_LDR_ERROR2);
 	}
 	else return ErrorHook(ARTEMIS_LDR_ERROR3);
 	MH_EnableHook(MH_ALL_HOOKS);
