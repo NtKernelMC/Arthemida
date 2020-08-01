@@ -25,10 +25,13 @@ void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_add
         data.regionSize = mme.RegionSize; // Запись размера региона памяти
         data.type = ArtemisLibrary::DetectionType::ART_RETURN_ADDRESS; // Выставление типа детекта
         data.dllName = moduleName; data.dllPath = MappedName; // Наименование модуля и путь к нему
-        g_cfg->callback(&data); g_cfg->ExcludedMethods.push_back(return_address); // вызываем коллбэк артемиды и добавляем срабатывание в анти-флуд
+        if (g_cfg != nullptr)
+        {
+            g_cfg->callback(&data); g_cfg->ExcludedMethods.push_back(return_address); // вызываем коллбэк артемиды и добавляем срабатывание в анти-флуд
 #ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X in to module %s\n", function_name, return_address, moduleName.c_str());
+            Utils::LogInFile(ARTEMIS_LOG, "Returned from %s function to 0x%X in to module %s\n", function_name, return_address, moduleName.c_str());
 #endif
+        }
 	}
 }
 void* __fastcall GameHooks::GetCustomData(CClientEntity* ECX, void* EDX, const char* szName, bool bInheritData, bool* pbIsSynced)
