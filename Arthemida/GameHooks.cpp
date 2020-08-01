@@ -6,6 +6,7 @@ GameHooks::ptrCheckUTF8BOMAndUpdate GameHooks::callCheckUTF8BOMAndUpdate = (Game
 GameHooks::ptrTriggerServerEvent GameHooks::callTriggerServerEvent = (GameHooks::ptrTriggerServerEvent)0x0;
 void GameHooks::CheckIfReturnIsLegit(const char* function_name, PVOID return_address)
 {
+    if (function_name == nullptr || return_address == nullptr) return;
 	vector<string> allowedModules = { "client.dll", "multiplayer_sa.dll", "game_sa.dll", 
 	"core.dll", "gta_sa.exe", "proxy_sa.exe", "lua5.1c.dll", "pcre3.dll" };
     string moduleName = Utils::GetNameOfModuledAddressSpace(return_address, Utils::GenerateModuleNamesList());

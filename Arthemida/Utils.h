@@ -160,6 +160,7 @@ public:
 	}
 	static bool IsVecContain2(const std::vector<std::string>& source, std::string element)
 	{
+		if (source.empty() || element.length() < 1) return false;
 		for (const auto it : source)
 		{
 			if (it == element) return true;
@@ -192,6 +193,7 @@ public:
 	}
 	static string GetNameOfModuledAddressSpace(PVOID addr, vector<string> mdls)
 	{
+		if (addr == nullptr || mdls.empty()) return std::string("EMPTY");
 		typedef BOOL(__stdcall* GetMdlInfoP)(HANDLE hProcess, HMODULE hModule, LPMODULEINFO lpmodinfo, DWORD cb);
 		GetMdlInfoP GetMdlInfo = (GetMdlInfoP)GetProcAddress(LoadLibraryA("psapi.dll"), "GetModuleInformation");
 		for (const auto& it : mdls)
