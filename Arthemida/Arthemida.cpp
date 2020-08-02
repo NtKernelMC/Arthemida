@@ -19,62 +19,13 @@
 	- Cканнер для защиты целостности памяти в местах хуков античита
 	- Сигнатурный cканер модулей в PEB на предмет поиска известных читов
 */
-#ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS
-#endif
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#pragma warning(disable : 4244)
+
 #include "GameHooks.h"
 #include "Arthemida.h"
-SigScan scn; bool WasReloaded = false;
-ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); // прототипирование
-typedef struct
-{
-	bool installed;
-	ART_LIB::ArtemisLibrary::ArtemisCallback callback;
-	std::map<PVOID, const char*> ForbiddenApcList;
-} APC_FILTER, *PAPC_FILTER;
-APC_FILTER flt;
 
+bool WasReloaded = false;
+ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
 ART_LIB::ArtemisLibrary::ArtemisConfig* g_cfg = nullptr;
-
-extern "C" void __stdcall KiApcStub(); // Работает через ASM, вызывает ApcHandler
-
-// Обработчик APC
-extern "C" void __stdcall HandleApc(PVOID ApcRoutine, PVOID Argument, PCONTEXT Context)
-{
-	auto IsRoutineForbidden = [](PVOID Routine) -> bool
-	{
-		if (Utils::SearchForSingleMapMatch<PVOID, const char*>(flt.ForbiddenApcList, Routine)) return true;
-		return false;
-	};
-	if (IsRoutineForbidden(Argument))
-	{
-		ART_LIB::ArtemisLibrary::ARTEMIS_DATA ApcInfo;
-		char ForbiddenName[45]; memset(ForbiddenName, 0, sizeof(ForbiddenName));
-		strcpy(ForbiddenName, Utils::SearchForSingleMapMatchAndRet(flt.ForbiddenApcList, Argument).c_str());
-		ApcInfo.ApcInfo = std::make_tuple(Argument, Context, ForbiddenName);
-		ApcInfo.type = ART_LIB::ArtemisLibrary::DetectionType::ART_APC_INJECTION;
-		flt.callback(&ApcInfo);
-	}
-}
-
-#ifdef _WIN64
-extern "C" void __stdcall ApcHandler(PCONTEXT Context)
-{
-	HandleApc(reinterpret_cast<PVOID>(Context->P4Home), reinterpret_cast<PVOID>(Context->P1Home), Context);
-}
-#else
-extern "C" void __stdcall ApcHandler(PVOID ApcRoutine, PVOID Arg, PCONTEXT Context)
-{
-	HandleApc(ApcRoutine, Arg, Context);
-}
-#endif
-
-extern "C" void(__stdcall * OriginalApcDispatcher)(PVOID NormalRoutine, PVOID SysArg1, PVOID SysArg2, CONTEXT Context) = nullptr;
-using ApcDispatcherPtr = void(__stdcall*)(PVOID NormalRoutine, PVOID SysArg1, PVOID SysArg2, CONTEXT Context);
 
 // Функция для дампа экспортов указанного модуля (hModule) в ExportsList
 void ART_LIB::ArtemisLibrary::DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList)
@@ -102,411 +53,10 @@ void ART_LIB::ArtemisLibrary::DumpExportTable(HMODULE hModule, std::multimap<PVO
 	}
 #endif  
 }
-// Сканер потоков
-void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
-{
-	if (cfg == nullptr) return;
-	if (cfg->callback == nullptr) return;
-	if (cfg->ThreadScanner) return;
-	cfg->ThreadScanner = true; 
-	typedef NTSTATUS(__stdcall* tNtQueryInformationThread)
-	(HANDLE ThreadHandle, THREADINFOCLASS ThreadInformationClass, PVOID ThreadInformation, ULONG ThreadInformationLength, PULONG ReturnLength);
-	tNtQueryInformationThread NtQueryInformationThread =
-	(tNtQueryInformationThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread"); // Получение функции из ntdll
-	while (true) // Цикл Сканера
-	{
-		THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);
-		hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-		if (Thread32First(hSnapshot, &th32))
-		{
-			do
-			{
-				if (th32.th32OwnerProcessID == GetCurrentProcessId() && th32.th32ThreadID != GetCurrentThreadId()) // Работаем только с текущим процессом, исключая текущий поток (самого Сканера)
-				{
-					HANDLE targetThread = OpenThread(THREAD_ALL_ACCESS, FALSE, th32.th32ThreadID); // Открытие хендла к потоку для доступа
-					if (targetThread)
-					{
-						SuspendThread(targetThread); DWORD_PTR tempBase = 0x0; // Временная заморозка потока для получения информации
-						NtQueryInformationThread(targetThread, (THREADINFOCLASS)9, &tempBase, sizeof(DWORD_PTR), NULL); // Получение базового адреса потока
-						ResumeThread(targetThread); CloseHandle(targetThread); // Разморозка потока и закрытие хендла к нему
-						if (!Utils::IsMemoryInModuledRange((LPVOID)tempBase) && !Utils::IsVecContain(cfg->ExcludedThreads, (LPVOID)tempBase)) // Проверка на легальность потока (в if заходит в случае нелегального)
-						{
-							MEMORY_BASIC_INFORMATION mme{ 0 }; ARTEMIS_DATA data;
-							VirtualQueryEx(GetCurrentProcess(), (LPCVOID)tempBase, &mme, sizeof(th32.dwSize)); // Получение подробной информации по региону памяти потока
-							data.baseAddr = (LPVOID)tempBase; // Запись базового адреса в data
-							data.MemoryRights = mme.AllocationProtect; // Запись прав доступа к региону в data
-							data.regionSize = mme.RegionSize; // Запись размера региона в data
-							data.type = DetectionType::ART_ILLEGAL_THREAD; // Выставление типа детекта
-							data.dllName = "unknown"; data.dllPath = "unknown"; // Название модуля неизвестно, ибо мы сканируем потоки, у смапленных модулей нет названий, а поток можно и вовсе создать без модуля
-							cfg->callback(&data); cfg->ExcludedThreads.push_back((LPVOID)tempBase); // Вызов коллбека и добавление базового адреса потока в список уже просканированных
-							break;
-						}
-					}
-				}
-			} while (Thread32Next(hSnapshot, &th32));
-			if (hSnapshot != NULL) CloseHandle(hSnapshot);
-		}
-		Sleep(cfg->ThreadScanDelay);
-	}
-}
-// Сканер модулей
-void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
-{
-	if (cfg == nullptr) return;
-	if (cfg->callback == nullptr) return;
-	if (cfg->ModuleScanner) return;
-	cfg->ModuleScanner = true;
-	auto LegalModule = [&, cfg](HMODULE mdl) -> bool
-	{
-		char moduleName[256]; memset(moduleName, 0, sizeof(moduleName));
-		cfg->lpGetMappedFileNameA(GetCurrentProcess(), mdl, moduleName, sizeof(moduleName));
-		if (Utils::CheckCRC32(mdl, cfg->ModuleSnapshot)) return true;
-		return false;
-	};
-	while (true)
-	{
-		std::map<LPVOID, DWORD> NewModuleMap = Utils::BuildModuledMemoryMap(); // Получение списка базовых адресов загруженных модулей и их размера
-		for (const auto& it : NewModuleMap)
-		{
-			if ((it.first != GetModuleHandleA(NULL) && it.first != cfg->hSelfModule) && // Условия: 1. Модуль не является текущим процессом; 2. Модуль не является текущим модулем (в котором используется античит)
-			!Utils::IsVecContain(cfg->ExcludedModules, it.first)) // 3. Модуль еще не проверен
-			{
-				CHAR szFileName[MAX_PATH + 1]; std::multimap<PVOID, std::string> ExportsList;
-				GetModuleFileNameA((HMODULE)it.first, szFileName, MAX_PATH + 1);
-				std::string NameOfDLL = Utils::GetDllName(szFileName);
-				DumpExportTable(GetModuleHandleA(NameOfDLL.c_str()), ExportsList); // Получение списка экспортов модуля
-				if (!LegalModule((HMODULE)it.first) || (std::find(cfg->ModulesWhitelist.begin(), cfg->ModulesWhitelist.end(), NameOfDLL) == cfg->ModulesWhitelist.end() && ExportsList.size() < 2)) // Если модуль нелегальный (детект пока только на дубликаты длл (прокси)) или же у него меньше двух экспортов и он не в белом списке, вход в if
-				{
-					MEMORY_BASIC_INFORMATION mme{ 0 }; ARTEMIS_DATA data;
-					VirtualQueryEx(GetCurrentProcess(), it.first, &mme, it.second); // Получение подробной информации о регионе памяти модуля
-					data.baseAddr = it.first; // Запись базового адреса модуля в data
-					data.MemoryRights = mme.AllocationProtect; // Запись прав доступа региона в data
-					data.regionSize = mme.RegionSize; // Запись размера региона в data
-					data.dllName = NameOfDLL; data.dllPath = szFileName;
-					data.type = DetectionType::ART_ILLEGAL_MODULE; // Выставление типа детекта на нелегальный модуль
-					cfg->callback(&data); cfg->ExcludedModules.push_back(it.first); // Вызов коллбека и добавление модуля в список уже проверенных
-				}
-			}
-		}
-		Sleep(cfg->MemoryScanDelay);
-	}
-}
-// Сканер памяти (анти-ммап)
-void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
-{
-	if (cfg == nullptr) return;
-	while (true)
-	{
-		auto WatchMemoryAllocations = [&, cfg]
-		(const void* ptr, size_t length, MEMORY_BASIC_INFORMATION* info, int size)
-		{
-			if (ptr == nullptr || info == nullptr) return;
-			const void* end = (const void*)((const char*)ptr + length);
-			DWORD mask = (PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_READ);
-			while (ptr < end && VirtualQuery(ptr, &info[0], sizeof(*info)) == sizeof(*info))
-			{
-				MEMORY_BASIC_INFORMATION* i = &info[0];
-				if ((i->State != MEM_FREE && i->State != MEM_RELEASE) && i->Type & (MEM_IMAGE | MEM_PRIVATE) && i->Protect & mask)
-				{
-					bool complete_sequence = false; DWORD_PTR foundIAT = 0x0;
-					if (i->RegionSize > 0x1000 && i->RegionSize != 0x7D000 && i->RegionSize != 0xF000)
-					{
-						for (DWORD_PTR z = (DWORD_PTR)ptr; z < ((DWORD_PTR)ptr + i->RegionSize); z++)
-						{
-							for (DWORD x = 0; x < (10 * 6); x += 0x6)
-							{
-								if ((x + z) < ((DWORD_PTR)ptr + i->RegionSize) && (x + z + 0x1) < ((DWORD_PTR)ptr + i->RegionSize))
-								{
-									if (*(BYTE*)(z + x) == 0xFF && *(BYTE*)(x + z + 0x1) == 0x25)
-									{
-										foundIAT = (x + z);
-										complete_sequence = true;
-									}
-									else complete_sequence = false;
-								}
-								else complete_sequence = false;
-							}
-							if (complete_sequence)
-							{
-								if (!Utils::IsMemoryInModuledRange((PVOID)z))
-								{
-									typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
-									LPFN_GetMappedFileNameA g_GetMappedFileNameA = nullptr; HMODULE hPsapi = LoadLibraryA("psapi.dll");
-									g_GetMappedFileNameA = (LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA");
-									char MappedName[256]; memset(MappedName, 0, sizeof(MappedName));
-									g_GetMappedFileNameA(GetCurrentProcess(), (PVOID)z, MappedName, sizeof(MappedName));
-									if (strlen(MappedName) < 4 && !Utils::IsVecContain(cfg->ExcludedImages, i->BaseAddress))
-									{
-										ARTEMIS_DATA data; data.baseAddr = (PVOID)foundIAT;
-										data.MemoryRights = i->Protect; data.regionSize = i->RegionSize;
-										data.dllName = "unknown"; data.dllPath = "unknown";
-										data.type = DetectionType::ART_MANUAL_MAP;
-										cfg->callback(&data); cfg->ExcludedImages.push_back(i->BaseAddress);
-									}
-								}
-							}
-						}
-					}
-				}
-				ptr = (const void*)((const char*)(i->BaseAddress) + i->RegionSize);
-			}
-		};
-		MEMORY_BASIC_INFORMATION mbi = { 0 };
-		WatchMemoryAllocations(START_ADDRESS, END_ADDRESS, &mbi, sizeof(MEMORY_BASIC_INFORMATION));
-		Sleep(cfg->MemoryScanDelay);
-	}
-}
-// Проверка на наличие секретного байта в памяти, который должен выставить лаунчер
-void __stdcall ART_LIB::ArtemisLibrary::CheckLauncher(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
-{
-	THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);
-	hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-	if (Thread32First(hSnapshot, &th32))
-	{
-		do
-		{
-			if (th32.th32OwnerProcessID == GetCurrentProcessId() && th32.th32ThreadID != GetCurrentThreadId())
-			{
-				typedef NTSTATUS(__stdcall* tNtQueryInformationThread)
-					(HANDLE ThreadHandle, THREADINFOCLASS ThreadInformationClass,
-						PVOID ThreadInformation, ULONG ThreadInformationLength,
-						PULONG ReturnLength);
 
-				tNtQueryInformationThread NtQueryInformationThread = (tNtQueryInformationThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread");
-
-				HANDLE pThread = OpenThread(THREAD_ALL_ACCESS, FALSE, th32.th32ThreadID);
-				if (pThread)
-				{
-					MEMORY_BASIC_INFORMATION mbi = { 0 }; DWORD_PTR tempBase = 0x0;
-					SuspendThread(pThread); CONTEXT context = { 0 };
-					NtQueryInformationThread(pThread, (THREADINFOCLASS)9, &tempBase, sizeof(DWORD_PTR), NULL);
-					VirtualQuery((void*)tempBase, &mbi, sizeof(MEMORY_BASIC_INFORMATION));
-					if (tempBase >= (DWORD_PTR)GetModuleHandleA(NULL) && tempBase <=
-						((DWORD_PTR)GetModuleHandleA(NULL) + mbi.RegionSize))
-					{
-						context.ContextFlags = CONTEXT_ALL;
-						GetThreadContext(pThread, &context);
-
-						ARTEMIS_DATA data;
-						data.type = DetectionType::ART_FAKE_LAUNCHER;
-
-						bool checkPassed = true;
-						if (context.Dr7 != NULL)
-						{
-							DWORD_PTR ctrlAddr = context.Dr2;
-							if (ctrlAddr != NULL)
-							{
-								BYTE nop[1] = { 0x0 }; memcpy(nop, (void*)ctrlAddr, 0x1);
-								if (nop[0] == 0x90)
-								{
-									VirtualFree((void*)ctrlAddr, 0, MEM_RELEASE);
-									context.Dr2 = 0x0; context.Dr7 = 0x0;
-									SetThreadContext(pThread, &context);
-									ResumeThread(pThread); CloseHandle(pThread);
-									break;
-								}
-								else checkPassed = false;
-							}
-							else checkPassed = false;
-						}
-						else checkPassed = false;
-
-						if (!checkPassed) cfg->callback(&data);
-					}
-					else
-					{
-						ResumeThread(pThread); CloseHandle(pThread);
-					}
-				}
-			}
-		} while (Thread32Next(hSnapshot, &th32));
-	}
-	if (hSnapshot != NULL) CloseHandle(hSnapshot);
-}
-// Метод для инициализации APC обработчика (заполнение связанного списка опасных APC и установка перехватчика)
-bool __stdcall ART_LIB::ArtemisLibrary::InstallApcDispatcher(ArtemisConfig* cfg)
-{
-	if (cfg == nullptr || cfg->callback == nullptr) return false; // защита краша пустым указателем
-	if (flt.installed) return true; // защита от повторной установки обработчика
-	flt.callback = cfg->callback; // копируем указатель на коллбэк т.к наш обработчик внешний
-	OriginalApcDispatcher = (ApcDispatcherPtr)GetProcAddress(GetModuleHandleA("ntdll.dll"), "KiUserApcDispatcher");
-	if (OriginalApcDispatcher == nullptr) return false;
-	auto MakeForbiddenList = []() -> std::map<PVOID, const char*>
-	{
-		std::map<PVOID, const char*> forbidden;
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryA"), "LoadLibraryA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryW"), "LoadLibraryW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExA"), "LoadLibraryExA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernel32.dll"), "LoadLibraryExW"), "LoadLibraryExW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryA"), "LoadLibraryA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryW"), "LoadLibraryW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryExA"), "LoadLibraryExA"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("kernelbase.dll"), "LoadLibraryExW"), "LoadLibraryExW"));
-		forbidden.insert(std::pair<PVOID, const char*>((PVOID)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll"), "LdrLoadDll"));
-		return forbidden;
-	};
-	flt.ForbiddenApcList = MakeForbiddenList(); // Заполняем связанный список запрещенных APC
-	if (MH_CreateHook(OriginalApcDispatcher, KiApcStub, reinterpret_cast<PVOID*>(&OriginalApcDispatcher)) == MH_OK) flt.installed = true; 
-	else
-	{
-		flt.installed = false; // Ставим флаг что APC обработчик не был включен из-за ошибки
-		return false; // информируем что произошла ошибка в установке перехвата
-	}
-	return true; // даем знать что APC обработчик был успешно установлен
-}
-
-GameHooks::ptrLdrLoadDll GameHooks::callLdrLoadDll = nullptr;
-NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle)
-{
-	NTSTATUS rslt = callLdrLoadDll(PathToFile, FlagsL, ModuleFileName, ModuleHandle);
-	std::wstring ModulePath(ModuleFileName->Buffer, ModuleFileName->Length);
-	if (ModulePath.find(L"client.dll") != std::wstring::npos) // если клиент длл загрузилась - ставим все наши хуки
-	{
-#ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, "[LdrLoadDll] client.dll module was been successfully loaded!\nInstalling game hooks...\n");
-#endif
-		ART_LIB::ArtemisLibrary::InstallGameHooks(g_cfg); // устанавливаем наши игровые хуки
-	}
-	return rslt;
-}
-bool __stdcall GameHooks::InstallModuleHooks(void) // Hook Controller
-{
-	auto ErrorHook = [](const char* log) -> bool
-	{
-#ifdef ARTEMIS_DEBUG
-		Utils::LogInFile(ARTEMIS_LOG, log);
-#endif
-		return false;
-	};
-	MH_STATUS mhs = MH_Initialize(); // инициализация минхука для возможности установки хуков
-	if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_INITIALIZED)
-	{
-		DWORD ldrAddr = (DWORD)GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrLoadDll");
-		if (ldrAddr != NULL)
-		{
-			MH_STATUS mhs = MH_CreateHook((PVOID)ldrAddr, &LdrLoadDll, reinterpret_cast<PVOID*>(&callLdrLoadDll));
-			if (mhs == MH_OK || mhs == MH_ERROR_ALREADY_CREATED)
-			{
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, ARTEMIS_LDR_SUCCESS);
-#endif
-			}
-			else return ErrorHook(ARTEMIS_LDR_ERROR);
-		}
-		else return ErrorHook(ARTEMIS_LDR_ERROR);
-		/////////////////////////////////////////////////////////////////////////////////////////////////////////
-	}
-	else return ErrorHook(ARTEMIS_LDR_ERROR3);
-	MH_EnableHook(MH_ALL_HOOKS);
-	return true;
-};
-bool __stdcall ART_LIB::ArtemisLibrary::InstallGameHooks(ArtemisConfig* cfg)
-{
-	if (cfg == nullptr) return false;
-	if (cfg->DetectAPC) // если указана опция античита проверять APC инъекции то ставим обработчик
-	{
-		if (!InstallApcDispatcher(cfg)) return false; // Вызываем установщик APC обрабочтика который ставит хук и производит заполнение APC-списка
-	}
-	if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
-	{
-		auto AddEventHandlerHook = []() -> void
-		{
-			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };
-			const char mask[] = { "xxxxxxxxxxxxxxxxxx?????xx????xxxx" };
-			DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
-			if (Addr != NULL)
-			{
-				MH_CreateHook((PVOID)Addr, &GameHooks::AddEventHandler, reinterpret_cast<PVOID*>(&GameHooks::callAddEventHandler));
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler Hook installed!\n");
-#endif
-			}
-#ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler - Can`t find sig.\n");
-#endif
-		};
-		AddEventHandlerHook(); // Используется читерами для отключения клиентских событий
-		auto ElementDataHook = []() -> void
-		{
-			const char pattern[] = { "\x55\x8B\xEC\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x81\xEC\xB4\x00\x00\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\xF0\x56" };
-			const char mask[] = { "xxxxxx????xxxxxxxxxxxxxx????xxxxxx" }; 
-			DWORD Addr = scn.FindPattern("client.dll", pattern, mask);
-			if (Addr != NULL)
-			{
-				MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrSetCustomData));
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData Hook installed!\n");
-#endif
-			}
-#ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
-#endif
-			//////////////////////////////////////////////////////////////////////////////////////
-			const char pattern2[] = { "\x55\x8B\xEC\x53\x8A\x5D\x0C" };
-			const char mask2[] = { "xxxxxxx" };
-			Addr = scn.FindPattern("client.dll", pattern2, mask2);
-			if (Addr != NULL)
-			{
-				MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrGetCustomData));
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData Hook installed!\n");
-#endif
-			}
-#ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData - Can`t find sig.\n");
-#endif
-		};
-		ElementDataHook(); // Используется читерами для получения списка элемент дат в луа скриптах (setElementData/getElementData)
-		auto InstallLuaHook = []()
-		{
-			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\xFF\x36\xFF\x37\xE8\x00\x00\x00\x00\x83\xC4\x08\x84\xC0\x74\x0C\x83\x07\x03\xB0\x01\x83\x06\xFD\x5F\x5E\x5D\xC3" };
-			const char mask[] = { "xxxxxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxx" }; 
-			DWORD luaHook = scn.FindPattern("client.dll", pattern, mask);
-			if (luaHook != NULL)
-			{
-				MH_CreateHook((PVOID)luaHook, &GameHooks::CheckUTF8BOMAndUpdate, reinterpret_cast<PVOID*>(&GameHooks::callCheckUTF8BOMAndUpdate));
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
-#endif
-			}
-#ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Can`t find sig.\n");
-#endif
-		}; InstallLuaHook(); // Используется читерами для инжекта lua скриптов в самой новой версии FireFest мультичита
-		auto InstallServerEventsHook = []()
-		{
-			const char pattern[] = { "\x55\x8B\xEC\x51\x53\x56\x57\x8B\x7D\x08\x85" };
-			const char mask[] = { "xxxxxxxxxxx" };
-			DWORD Hook = scn.FindPattern("client.dll", pattern, mask);
-			if (Hook != NULL)
-			{
-				MH_CreateHook((PVOID)Hook, &GameHooks::TriggerServerEvent, reinterpret_cast<PVOID*>(&GameHooks::callTriggerServerEvent));
-#ifdef ARTEMIS_DEBUG
-				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
-#endif
-			}
-#ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Can`t find sig.\n");
-#endif
-		}; InstallServerEventsHook(); // Используется читерами для получения списка серверных событий
-	}
-	// включаем все наши игровые хуки 
-	MH_EnableHook(MH_ALL_HOOKS);
-	return true; // даем знать что все хуки и обработчики установлены успешно
-}
-bool __stdcall ART_LIB::ArtemisLibrary::DeleteGameHooks()
-{
-	if (flt.installed || OriginalApcDispatcher != nullptr) // Снимаем APC обработчик если он был включен
-	{
-		flt.installed = false; // меняем флаг на "APC обработчик выключен" для возможности повторной установки
-	}
-	MH_DisableHook(MH_ALL_HOOKS); // Снимаем все наши хуки
-	MH_Uninitialize(); // деинициализация минхука для возможности его повторного использования после перезапуска античита
-	return true; // даем знать что все хуки были безопасно сняты и можно приступать к отключению античита
-}
 bool __cdecl DisableArtemis() // Метод отключения античита (жизненно необходим для его перезапуска)
 {
-	if (ART_LIB::ArtemisLibrary::DeleteGameHooks())
+	if (GameHooks::DeleteGameHooks()) // Снимает и игровые хуки и APC диспетчер!
 	{
 #ifdef ARTEMIS_DEBUG
 		if (!WasReloaded) Utils::LogInFile(ARTEMIS_LOG, "Artemis Library unloaded.\n");
@@ -516,6 +66,7 @@ bool __cdecl DisableArtemis() // Метод отключения античит�
 	}
 	return false;
 }
+
 ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg) // Метод для удобного перезапуска античита
 {
 	if (cfg == nullptr) return nullptr; 
@@ -527,6 +78,7 @@ ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisC
 	}
 	return nullptr; // возращаем нулевой указатель если не удалось безопасно перезапустить античит
 }
+
 // Инициализация библиотеки
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig *cfg)
 {
@@ -535,14 +87,18 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	else WasReloaded = false;
 	Utils::LogInFile(ARTEMIS_LOG, "Artemis Library loaded!\n");
 #endif
+
 	if (cfg == nullptr) return nullptr;
 	if (cfg->callback == nullptr) return nullptr;
+
 	static ART_LIB::ArtemisLibrary art_lib;
 	g_cfg = cfg; // копируем указатель конфига артемиды для связи с внешними хуками
+
 	if (cfg->DetectFakeLaunch) // Детект лаунчера (должен запускаться в первую очередь)
 	{
 		ART_LIB::ArtemisLibrary::CheckLauncher(cfg);
 	}
+
 	if (cfg->DetectThreads) // Детект сторонних потоков
 	{
 		if (!cfg->ThreadScanDelay) cfg->ThreadScanDelay = 1000;
@@ -550,6 +106,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::ScanForDllThreads, cfg);
 		AsyncScanner.detach(); // Запуск асинхронного cканера безымянных потоков которые используются читерами для обхода детекта мануал мап сканнера
 	}
+
 	if (cfg->DetectModules) // Детект сторонних модулей
 	{
 		if (!cfg->ModuleScanDelay) cfg->ModuleScanDelay = 1000;
@@ -559,15 +116,23 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread AsyncScanner(ART_LIB::ArtemisLibrary::ModuleScanner, cfg);
 		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканера модулей процесса
 	}
-	if (cfg->DetectAPC || cfg->DetectReturnAddresses) // Менеджер управляющий процессом распределения установки хуков
+
+	if (cfg->DetectAPC) // Детект APC инъекций
 	{
-		GameHooks::InstallModuleHooks(); // ставим ntdll.dll хуки на загрузку и выгрузку client.dll модуля для контроля за всеми нашими хуками
+		if (!ART_LIB::ArtemisLibrary::InstallApcDispatcher(cfg)) return nullptr; // Установка APC обрабочтика который ставит хук и производит заполнение APC-списка
 	}
-	if (cfg->DetectManualMap) // Детектор мануал маппинга
+
+	if (cfg->DetectReturnAddresses) // Детект нелегальных адресов возврата
+	{
+		GameHooks::InstallModuleHook(); // Установка NtDll хуки на загрузку и выгрузку client.dll для установки игровых хуков
+	}
+
+	if (cfg->DetectManualMap) // Детект мануал маппинга
 	{
 		if (!cfg->MemoryScanDelay) cfg->MemoryScanDelay = 1000;
 		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
-		MmapThread.detach(); // Запуск асинхронного cканера для поиска смапленных образов DLL-библиотек
+		MmapThread.detach(); // Запуск асинхронного cканнера для поиска смапленных образов DLL-библиотек
 	}
+
 	return &art_lib;
 }

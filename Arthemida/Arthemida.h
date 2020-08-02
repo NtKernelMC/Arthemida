@@ -1,4 +1,13 @@
 ﻿#pragma once
+
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#pragma warning(disable : 4244)
+
 #include "Utils.h"
 #ifdef _WIN64
 #define START_ADDRESS (PVOID)0x00000000010000
@@ -62,9 +71,8 @@ namespace ART_LIB
 		static void __stdcall ScanForDllThreads(ArtemisConfig* cfg);
 		static void __stdcall ModuleScanner(ArtemisConfig* cfg);
 		static bool __stdcall InstallApcDispatcher(ArtemisConfig* cfg);
+		static bool __stdcall DeleteApcDispatcher(void);
 		static void __stdcall MemoryScanner(ArtemisConfig* cfg);
-		static bool __stdcall InstallGameHooks(ArtemisConfig* cfg);
-		static bool __stdcall DeleteGameHooks(void);
 		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
 	};
 };

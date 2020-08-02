@@ -40,5 +40,7 @@ public:
 	static bool __cdecl AddEventHandler(CLuaMain* LuaMain, const char* szName, CClientEntity* Entity,
 	const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, float fPriorityMod);
 	static bool __cdecl TriggerServerEvent(const char* szName, CClientEntity* CallWithEntity, void* Arguments);
-	static bool __stdcall InstallModuleHooks(void);
+	static bool __stdcall InstallModuleHook(void);
+	static bool __stdcall InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
+    static bool __stdcall DeleteGameHooks();
 };

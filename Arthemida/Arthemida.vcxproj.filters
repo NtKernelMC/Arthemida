@@ -9,13 +9,34 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="Исходные файлы\Modules">
+      <UniqueIdentifier>{6f75b814-86e4-4ea3-a7fb-220e51dec61c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\Modules">
+      <UniqueIdentifier>{bc078ed4-4465-4405-9050-4ab5b3af1d87}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Arthemida.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="GameHooks.cpp">
-      <Filter>Исходные файлы</Filter>
+    <ClCompile Include="Modules\AntiFakeLaunch.cpp">
+      <Filter>Исходные файлы\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\ThreadScanner.cpp">
+      <Filter>Исходные файлы\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\ModuleScanner.cpp">
+      <Filter>Исходные файлы\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\MemoryScanner.cpp">
+      <Filter>Исходные файлы\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\CAPC.cpp">
+      <Filter>Исходные файлы\Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\GameHooks.cpp">
+      <Filter>Исходные файлы\Modules</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -31,14 +52,14 @@
     <ClInclude Include="MinHook.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="GameHooks.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="CVector.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="sigscan.h">
       <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="Modules\GameHooks.h">
+      <Filter>Файлы заголовков\Modules</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
