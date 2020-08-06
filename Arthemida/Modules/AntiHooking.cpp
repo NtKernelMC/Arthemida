@@ -4,18 +4,20 @@ void __stdcall ART_LIB::ArtemisLibrary::HookScanner(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
 	if (cfg->callback == nullptr) return;
-	
-	if (!cfg->ProtectedFunctionPatterns.empty())
+	if (cfg->ProtectedFunctionPatterns.empty()) return;
+
+	std::map<LPVOID, DWORD> NewModuleMap = Utils::BuildModuledMemoryMap();
+
+	while (true) 
 	{
-		std::map<LPVOID, DWORD> NewModuleMap = Utils::BuildModuledMemoryMap();
 		for (const auto& PatternPair : cfg->ProtectedFunctionPatterns)
 		{
 			for (const auto& it : NewModuleMap)
 			{
 				CHAR szFileName[MAX_PATH + 1]; GetModuleFileNameA((HMODULE)it.first, szFileName, MAX_PATH + 1);
 				std::string NameOfDLL = Utils::GetDllName(szFileName);
-				DWORD scanAddr = SigScan::FindPattern(NameOfDLL.c_str(), 
-				std::get<0>(PatternPair.second).c_str(), std::get<1>(PatternPair.second).c_str());
+				DWORD scanAddr = SigScan::FindPattern(NameOfDLL.c_str(),
+					std::get<0>(PatternPair.second).c_str(), std::get<1>(PatternPair.second).c_str());
 				if (scanAddr != NULL && !Utils::IsVecContain(cfg->ExcludedPatterns, it.first))
 				{
 					MEMORY_BASIC_INFORMATION mme{ 0 }; ARTEMIS_DATA data;
@@ -30,12 +32,6 @@ void __stdcall ART_LIB::ArtemisLibrary::HookScanner(ArtemisConfig* cfg)
 				}
 			}
 		}
-	}
-
-	while (true) 
-	{
-		
-
 		Sleep(cfg->HookScanDelay);
 	}
 }
