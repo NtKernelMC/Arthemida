@@ -60,7 +60,6 @@ namespace ART_LIB
 			bool DetectAPC = false;
 			bool DetectReturnAddresses = false;
 			bool DetectManualMap = false;
-			bool DetectInlineHooks = false;
 			bool DetectMemoryPatch = false;
 			bool DetectHooks = false;
 			std::vector<std::string> ModulesWhitelist;

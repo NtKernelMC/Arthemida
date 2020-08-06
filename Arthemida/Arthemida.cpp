@@ -141,6 +141,5 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread HookThread(ART_LIB::ArtemisLibrary::HookScanner, cfg);
 		HookThread.detach();
 	}
-
 	return &art_lib;
 }
