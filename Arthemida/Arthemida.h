@@ -60,12 +60,15 @@ namespace ART_LIB
 			bool DetectModules = false;
 			DWORD ModuleScanDelay = 0x0;
 			DWORD MemoryScanDelay = 0x0;
+			DWORD HookScanDelay = 0x0;
 			bool DetectFakeLaunch = false;
 			bool DetectAPC = false;
 			bool DetectReturnAddresses = false;
 			bool DetectManualMap = false;
 			bool DetectMemoryPatch = false;
+			bool DetectHooks = false;
 			std::vector<std::string> ModulesWhitelist;
+			std::vector<std::pair<const char*, const char*>> ProtectedFunctionPatterns;
 		};
 		static void DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList);
 		static void __stdcall ScanForDllThreads(ArtemisConfig* cfg);
@@ -74,6 +77,7 @@ namespace ART_LIB
 		static bool __stdcall DeleteApcDispatcher(void);
 		static void __stdcall MemoryScanner(ArtemisConfig* cfg);
 		static void __stdcall CheckLauncher(ArtemisConfig* cfg);
+		static void __stdcall HookScanner(ArtemisConfig* cfg);
 	};
 };
 extern ART_LIB::ArtemisLibrary::ArtemisConfig* g_cfg;

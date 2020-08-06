@@ -1,6 +1,6 @@
 #include "Arthemida.h"
 
-// Сканер модулей
+// Сканнер модулей
 void __stdcall ART_LIB::ArtemisLibrary::ModuleScanner(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
