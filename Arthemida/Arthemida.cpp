@@ -133,6 +133,9 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
 		MmapThread.detach(); // Запуск асинхронного cканнера для поиска смапленных образов DLL-библиотек
 	}
+	if (cfg->DetectMemoryPatch)
+	{
 
+	}
 	return &art_lib;
 }
