@@ -22,7 +22,6 @@
 
 #include "GameHooks.h"
 #include "Arthemida.h"
-
 bool WasReloaded = false;
 ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
 ART_LIB::ArtemisLibrary::ArtemisConfig* g_cfg = nullptr;
