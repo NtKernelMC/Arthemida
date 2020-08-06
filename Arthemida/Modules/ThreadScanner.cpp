@@ -11,7 +11,7 @@ void __stdcall ART_LIB::ArtemisLibrary::ScanForDllThreads(ArtemisConfig* cfg)
 		(HANDLE ThreadHandle, THREADINFOCLASS ThreadInformationClass, PVOID ThreadInformation, ULONG ThreadInformationLength, PULONG ReturnLength);
 	tNtQueryInformationThread NtQueryInformationThread =
 		(tNtQueryInformationThread)GetProcAddress(GetModuleHandleA("ntdll.dll"), "NtQueryInformationThread"); // Получение функции из ntdll
-	while (true) // Цикл Сканера
+	while (true) // Цикл сканнера
 	{
 		THREADENTRY32 th32; HANDLE hSnapshot = NULL; th32.dwSize = sizeof(THREADENTRY32);
 		hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);

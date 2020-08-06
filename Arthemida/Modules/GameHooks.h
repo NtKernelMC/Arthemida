@@ -14,12 +14,9 @@ public:
     typedef void CEntity;
 	typedef void CClientEntity;
 	typedef void CLuaFunctionRef;
-	typedef void CLuaMain;
-	static HMODULE client_dll; 
+	typedef void CLuaMain; 
 	typedef NTSTATUS(__stdcall* ptrLdrLoadDll)(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle);
 	static ptrLdrLoadDll callLdrLoadDll;
-	typedef NTSTATUS(__stdcall* ptrLdrUnloadDll)(HMODULE ModuleHandle);
-	static ptrLdrUnloadDll callLdrUnloadDll;
     static void CheckIfReturnIsLegit(const char* function_name, PVOID return_address);
 	typedef bool(__cdecl* ptrAddEventHandler)(CLuaMain* LuaMain, const char* szName, CClientEntity* Entity,
 	const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, float fPriorityMod);

@@ -54,7 +54,8 @@ void ART_LIB::ArtemisLibrary::DumpExportTable(HMODULE hModule, std::multimap<PVO
 #endif  
 }
 
-bool __cdecl DisableArtemis() // Метод отключения античита (жизненно необходим для его перезапуска)
+// Метод отключения античита (жизненно необходим для его перезапуска)
+bool __cdecl DisableArtemis()
 {
 	if (GameHooks::DeleteGameHooks()) // Снимает и игровые хуки и APC диспетчер!
 	{
@@ -62,21 +63,22 @@ bool __cdecl DisableArtemis() // Метод отключения античит�
 		if (!WasReloaded) Utils::LogInFile(ARTEMIS_LOG, "Artemis Library unloaded.\n");
 		else Utils::LogInFile(ARTEMIS_LOG, "Reloading Artemis Library...\n");
 #endif
-		return true; // заботимся о снятии всех хуков и обработчиков чтобы избежать краша после отключения античита
+		return true;
 	}
 	return false;
 }
 
-ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg) // Метод для удобного перезапуска античита
+// Метод для удобного перезапуска античита
+ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return nullptr; 
 	WasReloaded = true;
-	if (DisableArtemis()) // безопасное отключение античита
+	if (DisableArtemis())
 	{
-		ART_LIB::ArtemisLibrary* art_lib = alInitializeArtemis(cfg); // запускаем античит повторно
-		return art_lib; // возращаем двухуровневый указатель на оригинал содержащий настройки античита
+		ART_LIB::ArtemisLibrary* art_lib = alInitializeArtemis(cfg);
+		return art_lib; // Возращаем указатель на оригинал содержащий настройки античита
 	}
-	return nullptr; // возращаем нулевой указатель если не удалось безопасно перезапустить античит
+	return nullptr; // Возращаем нулевой указатель если не удалось безопасно перезапустить античит
 }
 
 // Инициализация библиотеки
@@ -92,7 +94,7 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 	if (cfg->callback == nullptr) return nullptr;
 
 	static ART_LIB::ArtemisLibrary art_lib;
-	g_cfg = cfg; // копируем указатель конфига артемиды для связи с внешними хуками
+	g_cfg = cfg; // Копируем указатель конфига артемиды для связи с внешними хуками
 
 	if (cfg->DetectFakeLaunch) // Детект лаунчера (должен запускаться в первую очередь)
 	{
@@ -132,6 +134,13 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		if (!cfg->MemoryScanDelay) cfg->MemoryScanDelay = 1000;
 		std::thread MmapThread(ART_LIB::ArtemisLibrary::MemoryScanner, cfg);
 		MmapThread.detach(); // Запуск асинхронного cканнера для поиска смапленных образов DLL-библиотек
+	}
+
+	if (cfg->DetectHooks)
+	{
+		if (!cfg->HookScanDelay) cfg->HookScanDelay = 1000;
+		std::thread HookThread(ART_LIB::ArtemisLibrary::HookScanner, cfg);
+		HookThread.detach();
 	}
 
 	return &art_lib;

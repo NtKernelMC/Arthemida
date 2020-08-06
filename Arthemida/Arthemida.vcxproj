@@ -176,6 +176,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Arthemida.cpp" />
+    <ClCompile Include="Modules\AntiHooking.cpp" />
     <ClCompile Include="Modules\GameHooks.cpp" />
     <ClCompile Include="Modules\AntiFakeLaunch.cpp" />
     <ClCompile Include="Modules\CAPC.cpp" />

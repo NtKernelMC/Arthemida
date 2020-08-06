@@ -15,7 +15,8 @@ NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICO
     return rslt;
 }
 
-bool __stdcall GameHooks::InstallModuleHook(void) // Hook Controller
+// Установка хука на LdrLoadDll для ловли загрузки client.dll (внешне только так)
+bool __stdcall GameHooks::InstallModuleHook(void)
 {
     auto ErrorHook = [](const char* log) -> bool
     {
@@ -68,6 +69,8 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 #endif
 		};
 		AddEventHandlerHook(); // Используется читерами для отключения клиентских событий
+		
+		
 		auto ElementDataHook = []() -> void
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x81\xEC\xB4\x00\x00\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\xF0\x56" };
@@ -83,7 +86,7 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 #ifdef ARTEMIS_DEBUG
 			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
 #endif
-			//////////////////////////////////////////////////////////////////////////////////////
+
 			const char pattern2[] = { "\x55\x8B\xEC\x53\x8A\x5D\x0C" };
 			const char mask2[] = { "xxxxxxx" };
 			Addr = SigScan::FindPattern("client.dll", pattern2, mask2);
@@ -99,6 +102,8 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 #endif
 		};
 		ElementDataHook(); // Используется читерами для получения списка элемент дат в луа скриптах (setElementData/getElementData)
+		
+		
 		auto InstallLuaHook = []()
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\xFF\x36\xFF\x37\xE8\x00\x00\x00\x00\x83\xC4\x08\x84\xC0\x74\x0C\x83\x07\x03\xB0\x01\x83\x06\xFD\x5F\x5E\x5D\xC3" };
@@ -116,6 +121,8 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 #endif
 		};
 		InstallLuaHook(); // Используется читерами для инжекта lua скриптов в самой новой версии FireFest мультичита
+		
+		
 		auto InstallServerEventsHook = []()
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x51\x53\x56\x57\x8B\x7D\x08\x85" };

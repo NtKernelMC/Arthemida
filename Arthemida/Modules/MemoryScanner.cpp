@@ -1,9 +1,10 @@
 #include "Arthemida.h"
 
-// —каннер пам€ти
+// Сканнер памяти
 void __stdcall ART_LIB::ArtemisLibrary::MemoryScanner(ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return;
+	if (cfg->callback == nullptr) return;
 	while (true)
 	{
 		auto WatchMemoryAllocations = [&, cfg]
