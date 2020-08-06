@@ -23,7 +23,6 @@ namespace ART_LIB
 			ART_APC_INJECTION = 4,
 			ART_RETURN_ADDRESS = 5,
 			ART_MANUAL_MAP = 6,
-			ART_INLINE_HOOK = 7,
 			ART_MEMORY_CHANGED = 7,
 			ART_SIGNATURE_DETECT = 8
 		};
@@ -70,4 +69,6 @@ namespace ART_LIB
 		};
 	};
 };
-ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg); 
+ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
+ART_LIB::ArtemisLibrary* __cdecl ReloadArtemis(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
+bool __cdecl DisableArtemis();
