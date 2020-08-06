@@ -119,14 +119,14 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		AsyncScanner.detach(); // Создание и запуск асинхронного потока сканера модулей процесса
 	}
 
-	if (cfg->DetectAPC) // Детект APC инъекций
-	{
-		if (!ART_LIB::ArtemisLibrary::InstallApcDispatcher(cfg)) return nullptr; // Установка APC обрабочтика который ставит хук и производит заполнение APC-списка
-	}
-
 	if (cfg->DetectReturnAddresses) // Детект нелегальных адресов возврата
 	{
 		GameHooks::InstallModuleHook(); // Установка NtDll хуки на загрузку и выгрузку client.dll для установки игровых хуков
+	}
+
+	if (cfg->DetectAPC) // Детект APC инъекций
+	{
+		if (!ART_LIB::ArtemisLibrary::InstallApcDispatcher(cfg)) return nullptr; // Установка APC обрабочтика который ставит хук и производит заполнение APC-списка
 	}
 
 	if (cfg->DetectManualMap) // Детект мануал маппинга

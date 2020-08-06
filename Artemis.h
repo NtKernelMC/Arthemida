@@ -26,7 +26,6 @@ namespace ART_LIB
 			ART_MEMORY_CHANGED = 7,
 			ART_SIGNATURE_DETECT = 8
 		};
-		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 		struct ARTEMIS_DATA
 		{
 			PVOID baseAddr;
@@ -39,6 +38,7 @@ namespace ART_LIB
 			std::tuple<PVOID, PCONTEXT, const char*> ApcInfo;
 		};
 		typedef void(__stdcall* ArtemisCallback)(ARTEMIS_DATA* artemis);
+		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 		struct ArtemisConfig
 		{
 			HANDLE hSelfModule = nullptr;
@@ -46,6 +46,7 @@ namespace ART_LIB
 			LPFN_GetMappedFileNameA lpGetMappedFileNameA = nullptr;
 			ArtemisCallback callback = nullptr;
 			std::vector<PVOID> ExcludedThreads;
+			std::vector<PVOID> ExcludedMethods;
 			bool DetectThreads = false;
 			volatile bool ThreadScanner = false;
 			volatile bool ModuleScanner = false;
