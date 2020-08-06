@@ -29,7 +29,8 @@ namespace ART_LIB
 			ART_APC_INJECTION = 4,
 			ART_RETURN_ADDRESS = 5,
 			ART_MANUAL_MAP = 6,
-			ART_MEMORY_CHANGED = 7
+			ART_MEMORY_CHANGED = 7,
+			ART_SIGNATURE_DETECT = 8
 		};
 		struct ARTEMIS_DATA
 		{
@@ -39,6 +40,7 @@ namespace ART_LIB
 			DetectionType type;
 			std::string dllName;
 			std::string dllPath;
+			std::string HackName;
 			std::tuple<PVOID, PCONTEXT, const char*> ApcInfo;
 		};
 		typedef void(__stdcall* ArtemisCallback)(ARTEMIS_DATA* artemis);
@@ -68,7 +70,8 @@ namespace ART_LIB
 			bool DetectMemoryPatch = false;
 			bool DetectHooks = false;
 			std::vector<std::string> ModulesWhitelist;
-			std::vector<std::pair<const char*, const char*>> ProtectedFunctionPatterns;
+			std::map<std::string, std::tuple<std::string, std::string>> ProtectedFunctionPatterns;
+			std::vector<PVOID> ExcludedPatterns;
 		};
 		static void DumpExportTable(HMODULE hModule, std::multimap<PVOID, std::string>& ExportsList);
 		static void __stdcall ScanForDllThreads(ArtemisConfig* cfg);

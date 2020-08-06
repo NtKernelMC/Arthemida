@@ -24,7 +24,8 @@ namespace ART_LIB
 			ART_RETURN_ADDRESS = 5,
 			ART_MANUAL_MAP = 6,
 			ART_INLINE_HOOK = 7,
-			ART_MEMORY_CHANGED = 8
+			ART_MEMORY_CHANGED = 7,
+			ART_SIGNATURE_DETECT = 8
 		};
 		typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
 		struct ARTEMIS_DATA
@@ -35,6 +36,7 @@ namespace ART_LIB
 			DetectionType type;
 			std::string dllName;
 			std::string dllPath;
+			std::string HackName;
 			std::tuple<PVOID, PCONTEXT, const char*> ApcInfo;
 		};
 		typedef void(__stdcall* ArtemisCallback)(ARTEMIS_DATA* artemis);
@@ -63,7 +65,8 @@ namespace ART_LIB
 			bool DetectMemoryPatch = false;
 			bool DetectHooks = false;
 			std::vector<std::string> ModulesWhitelist;
-			std::vector<std::pair<const char*, const char*>> ProtectedFunctionPatterns;
+			std::map<std::string, std::tuple<std::string, std::string>> ProtectedFunctionPatterns;
+			std::vector<PVOID> ExcludedPatterns;
 		};
 	};
 };
