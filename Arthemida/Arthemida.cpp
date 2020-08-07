@@ -141,5 +141,10 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		std::thread HookThread(ART_LIB::ArtemisLibrary::SigScanner, cfg);
 		HookThread.detach();
 	}
+
+	if (cfg->DetectMemoryPatch)
+	{
+
+	}
 	return &art_lib;
 }
