@@ -51,6 +51,7 @@ bool __stdcall GameHooks::InstallModuleHook(void)
 bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg)
 {
 	if (cfg == nullptr) return false;
+	if (!HooksList.empty()) HooksList.clear();
 	if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 	{
 		auto AddEventHandlerHook = []() -> void
@@ -168,10 +169,14 @@ void __stdcall GameHooks::MemoryGuardScanner(ART_LIB::ArtemisLibrary::ArtemisCon
 	};
 	while (true)
 	{
+		if (!GetModuleHandleA("client.dll")) break;
 		if (!cfg->DetectMemoryPatch) break;
 		for (const auto& it : HooksList)
 		{
-			DWORD Delta = NULL; memcpy(&Delta, (PVOID)((DWORD)it.second + 0x1), 4);
+			if (!GetModuleHandleA("client.dll")) break;
+			DWORD Delta = NULL; 
+			memcpy(&Delta, (PVOID)((DWORD)it.second + 0x1), 4);
+
 			DWORD_PTR DestinationAddr = ReverseDelta((DWORD_PTR)it.second, Delta, 5);
 			if (*(BYTE*)it.second != 0xE9 || (*(BYTE*)it.second == 0xE9 && DestinationAddr != (DWORD)it.first))
 			{
