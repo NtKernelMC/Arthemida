@@ -183,7 +183,7 @@ void __stdcall GameHooks::MemoryGuardScanner(ART_LIB::ArtemisLibrary::ArtemisCon
 				if (strlen(MappedName) < 4 && !Utils::IsVecContain(cfg->ExcludedPatches, it.second))
 				{
 					ArtemisLibrary::ARTEMIS_DATA data; data.baseAddr = it.second;
-					data.MemoryRights = 0x0; data.regionSize = 0x5;
+					data.MemoryRights = PAGE_EXECUTE_READWRITE; data.regionSize = 0x5;
 					data.dllName = Utils::GetDllName(MappedName); data.dllPath = MappedName;
 					data.type = ArtemisLibrary::DetectionType::ART_MEMORY_CHANGED;
 					cfg->callback(&data); cfg->ExcludedPatches.push_back(it.second);
