@@ -15,7 +15,11 @@ public:
 	}
 	static DWORD FindPattern(const char* module, const char* pattern, const char* mask)
 	{
-		if (std::string(module).find("kernel32.dll") != std::string::npos) return NULL;
+		auto lowercase = [](std::string data) -> std::string {
+			std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) { return std::tolower(c); });
+			return data;
+		};
+		if (lowercase(module) == "kernel32.dll") return NULL;
 		MODULEINFO mInfo = GetModuleInfo(module);
 		DWORD base = (DWORD)mInfo.lpBaseOfDll;
 		DWORD size = (DWORD)mInfo.SizeOfImage;
