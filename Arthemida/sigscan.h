@@ -33,4 +33,20 @@ public:
 		}
 		return NULL;
 	}
+	// experimental
+	static DWORD FindPatternExplicit(DWORD base, DWORD size, const char* pattern, const char* mask)
+	{
+		DWORD patternLength = (DWORD)strlen(mask);
+		for (DWORD i = 0; i < size - patternLength; i++)
+		{
+			bool found = true;
+			for (DWORD j = 0; j < patternLength; j++) {
+				found &= mask[j] == '?' || pattern[j] == *(char*)(base + i + j);
+			}
+			if (found)
+			{
+				return (base + i);
+			}
+		}
+	}
 };
