@@ -38,7 +38,7 @@
     <ClCompile Include="Modules\GameHooks.cpp">
       <Filter>Исходные файлы\Modules</Filter>
     </ClCompile>
-    <ClCompile Include="Modules\AntiHooking.cpp">
+    <ClCompile Include="Modules\SigScanner.cpp">
       <Filter>Исходные файлы\Modules</Filter>
     </ClCompile>
   </ItemGroup>

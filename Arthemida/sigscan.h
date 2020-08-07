@@ -13,13 +13,9 @@ public:
 		K32GetModuleInformation(GetCurrentProcess(), hModule, &modinfo, sizeof(MODULEINFO));
 		return modinfo;
 	}
+
 	static DWORD FindPattern(const char* module, const char* pattern, const char* mask)
 	{
-		auto lowercase = [](std::string data) -> std::string {
-			std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) { return std::tolower(c); });
-			return data;
-		};
-		if (lowercase(module) == "kernel32.dll") return NULL;
 		MODULEINFO mInfo = GetModuleInfo(module);
 		DWORD base = (DWORD)mInfo.lpBaseOfDll;
 		DWORD size = (DWORD)mInfo.SizeOfImage;
@@ -39,7 +35,7 @@ public:
 		}
 		return NULL;
 	}
-	// experimental
+	
 	static DWORD FindPatternExplicit(DWORD base, DWORD size, const char* pattern, const char* mask)
 	{
 		DWORD patternLength = (DWORD)strlen(mask);
@@ -54,5 +50,6 @@ public:
 				return (base + i);
 			}
 		}
+		return NULL;
 	}
 };

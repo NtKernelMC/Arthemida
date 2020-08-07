@@ -135,10 +135,10 @@ ART_LIB::ArtemisLibrary* __cdecl alInitializeArtemis(ART_LIB::ArtemisLibrary::Ar
 		MmapThread.detach(); // Запуск асинхронного cканнера для поиска смапленных образов DLL-библиотек
 	}
 
-	if (cfg->DetectHooks)
+	if (cfg->DetectPatterns)
 	{
-		if (!cfg->HookScanDelay) cfg->HookScanDelay = 1000;
-		std::thread HookThread(ART_LIB::ArtemisLibrary::HookScanner, cfg);
+		if (!cfg->PatternScanDelay) cfg->PatternScanDelay = 1000;
+		std::thread HookThread(ART_LIB::ArtemisLibrary::SigScanner, cfg);
 		HookThread.detach();
 	}
 	return &art_lib;

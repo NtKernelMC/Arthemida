@@ -152,6 +152,9 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 }
 #pragma endregion
 
+ArtemisLibrary::ArtemisConfig cfg;
+ArtemisLibrary* art;
+
 // Создание консоли, загрузка dxgi.dll для теста (не имеет значения, просто у меня уже есть готовая прокси длл на dxgi), инициализация либы, ожидание
 void ConsoleOutput() {
 	AllocConsole();
@@ -162,7 +165,6 @@ void ConsoleOutput() {
 
 	LoadLibraryA("dxgi.dll");
 
-	ArtemisLibrary::ArtemisConfig cfg;
 	cfg.hSelfModule = NULL;
 	cfg.callback = ArtemisCallback;
 	cfg.DetectThreads = true;
@@ -175,7 +177,7 @@ void ConsoleOutput() {
 	
 	cfg.ThreadScanDelay = 1000;
 	cfg.ModuleScanDelay = 1000;
-	ArtemisLibrary* art = alInitializeArtemis(&cfg);
+	art = alInitializeArtemis(&cfg);
 	if (art == nullptr) {
 		printf("Library initialization failed. Press any key to exit.\n");
 		_getch();
