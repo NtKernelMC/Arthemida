@@ -1,6 +1,7 @@
 #include "GameHooks.h"
 
 GameHooks::ptrLdrLoadDll GameHooks::callLdrLoadDll = nullptr;
+std::map<PVOID, PVOID> GameHooks::HooksList;
 NTSTATUS __stdcall GameHooks::LdrLoadDll(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle)
 {
     NTSTATUS rslt = callLdrLoadDll(PathToFile, FlagsL, ModuleFileName, ModuleHandle);
@@ -59,6 +60,7 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 			DWORD Addr = SigScan::FindPattern("client.dll", pattern, mask);
 			if (Addr != NULL)
 			{
+				HooksList.insert(std::pair<PVOID, PVOID>(AddEventHandler, (PVOID)Addr));
 				MH_CreateHook((PVOID)Addr, &GameHooks::AddEventHandler, reinterpret_cast<PVOID*>(&GameHooks::callAddEventHandler));
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler Hook installed!\n");
@@ -78,7 +80,8 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 			DWORD Addr = SigScan::FindPattern("client.dll", pattern, mask);
 			if (Addr != NULL)
 			{
-				MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrSetCustomData));
+				HooksList.insert(std::pair<PVOID, PVOID>(SetCustomData, (PVOID)Addr));
+				MH_CreateHook((PVOID)Addr, &GameHooks::SetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrSetCustomData));
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData Hook installed!\n");
 #endif
@@ -92,6 +95,7 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 			Addr = SigScan::FindPattern("client.dll", pattern2, mask2);
 			if (Addr != NULL)
 			{
+				HooksList.insert(std::pair<PVOID, PVOID>(GetCustomData, (PVOID)Addr));
 				MH_CreateHook((PVOID)Addr, &GameHooks::GetCustomData, reinterpret_cast<PVOID*>(&GameHooks::ptrGetCustomData));
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData Hook installed!\n");
@@ -111,6 +115,7 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 			DWORD luaHook = SigScan::FindPattern("client.dll", pattern, mask);
 			if (luaHook != NULL)
 			{
+				HooksList.insert(std::pair<PVOID, PVOID>(CheckUTF8BOMAndUpdate, (PVOID)luaHook));
 				MH_CreateHook((PVOID)luaHook, &GameHooks::CheckUTF8BOMAndUpdate, reinterpret_cast<PVOID*>(&GameHooks::callCheckUTF8BOMAndUpdate));
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
@@ -130,6 +135,7 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 			DWORD Hook = SigScan::FindPattern("client.dll", pattern, mask);
 			if (Hook != NULL)
 			{
+				HooksList.insert(std::pair<PVOID, PVOID>(TriggerServerEvent, (PVOID)Hook));
 				MH_CreateHook((PVOID)Hook, &GameHooks::TriggerServerEvent, reinterpret_cast<PVOID*>(&GameHooks::callTriggerServerEvent));
 #ifdef ARTEMIS_DEBUG
 				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
@@ -143,7 +149,49 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 	}
 	// включаем все наши игровые хуки 
 	MH_EnableHook(MH_ALL_HOOKS);
+	if (cfg->DetectMemoryPatch) // запускаем наш сканнер для защиты хуков от их снятия
+	{
+		std::thread MemThread(MemoryGuardScanner, cfg);
+		MemThread.detach();
+	}
 	return true; // даем знать что все хуки и обработчики установлены успешно
+}
+
+void __stdcall GameHooks::MemoryGuardScanner(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg) // сканнер целостности памяти для наших игровых хуков
+{
+	if (cfg == nullptr) return;
+	if (cfg->MemoryGuardDelay <= 1) cfg->MemoryGuardDelay = 1000;
+	auto ReverseDelta = [](DWORD_PTR CurrentAddress, DWORD Delta, size_t InstructionLength, bool bigger = false) -> DWORD_PTR
+	{
+		if (bigger) return ((CurrentAddress + (Delta + InstructionLength)) - 0xFFFFFFFE);
+		return CurrentAddress + (Delta + InstructionLength);
+	};
+	while (true)
+	{
+		if (!cfg->DetectMemoryPatch) break;
+		for (const auto& it : HooksList)
+		{
+			DWORD Delta = NULL; memcpy(&Delta, (PVOID)((DWORD)it.second + 0x1), 4);
+			DWORD_PTR DestinationAddr = ReverseDelta((DWORD_PTR)it.second, Delta, 5);
+			if (*(BYTE*)it.second != 0xE9 || (*(BYTE*)it.second == 0xE9 && DestinationAddr != (DWORD)it.first))
+			{
+				typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
+				LPFN_GetMappedFileNameA g_GetMappedFileNameA = nullptr; HMODULE hPsapi = LoadLibraryA("psapi.dll");
+				g_GetMappedFileNameA = (LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA");
+				char MappedName[256]; memset(MappedName, 0, sizeof(MappedName));
+				g_GetMappedFileNameA(GetCurrentProcess(), it.second, MappedName, sizeof(MappedName));
+				if (strlen(MappedName) < 4 && !Utils::IsVecContain(cfg->ExcludedPatches, it.second))
+				{
+					ArtemisLibrary::ARTEMIS_DATA data; data.baseAddr = it.second;
+					data.MemoryRights = 0x0; data.regionSize = 0x5;
+					data.dllName = Utils::GetDllName(MappedName); data.dllPath = MappedName;
+					data.type = ArtemisLibrary::DetectionType::ART_MEMORY_CHANGED;
+					cfg->callback(&data); cfg->ExcludedPatches.push_back(it.second);
+				}
+			}
+		}
+		Sleep(cfg->MemoryGuardDelay);
+	}
 }
 
 bool __stdcall GameHooks::DeleteGameHooks()

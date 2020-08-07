@@ -69,6 +69,8 @@ namespace ART_LIB
 			bool DetectManualMap = false;
 			bool DetectMemoryPatch = false;
 			bool DetectPatterns = false;
+			DWORD MemoryGuardDelay;
+			std::vector<PVOID> ExcludedPatches;
 			std::vector<std::string> ModulesWhitelist;
 			std::map<std::string, std::tuple<const char*, const char*>> IllegalPatterns;
 			std::vector<PVOID> DetectedSigAddresses;

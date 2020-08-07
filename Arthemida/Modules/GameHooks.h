@@ -17,6 +17,7 @@ public:
 	typedef void CLuaMain; 
 	typedef NTSTATUS(__stdcall* ptrLdrLoadDll)(PWCHAR PathToFile, ULONG FlagsL, PUNICODE_STRING ModuleFileName, HMODULE* ModuleHandle);
 	static ptrLdrLoadDll callLdrLoadDll;
+	static std::map<PVOID, PVOID> HooksList;
     static void CheckIfReturnIsLegit(const char* function_name, PVOID return_address);
 	typedef bool(__cdecl* ptrAddEventHandler)(CLuaMain* LuaMain, const char* szName, CClientEntity* Entity,
 	const CLuaFunctionRef* iLuaFunction, bool bPropagated, DWORD eventPriority, float fPriorityMod);
@@ -40,4 +41,5 @@ public:
 	static bool __stdcall InstallModuleHook(void);
 	static bool __stdcall InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
     static bool __stdcall DeleteGameHooks();
+	static void __stdcall MemoryGuardScanner(ART_LIB::ArtemisLibrary::ArtemisConfig* cfg);
 };
