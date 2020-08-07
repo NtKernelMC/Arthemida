@@ -15,6 +15,7 @@ public:
 	}
 	static DWORD FindPattern(const char* module, const char* pattern, const char* mask)
 	{
+		if (std::string(module).find("kernel32.dll") != std::string::npos) return NULL;
 		MODULEINFO mInfo = GetModuleInfo(module);
 		DWORD base = (DWORD)mInfo.lpBaseOfDll;
 		DWORD size = (DWORD)mInfo.SizeOfImage;
@@ -24,7 +25,7 @@ public:
 			bool found = true;
 			for (DWORD j = 0; j < patternLength; j++)
 			{
-				if ((DWORD)(base + i + j) > (DWORD)mInfo.SizeOfImage) { found = false; break; }
+				//if ((DWORD)(base + i + j) > (DWORD)mInfo.SizeOfImage) { found = false; break; }
 				found &= mask[j] == '?' || pattern[j] == *(char*)(base + i + j);
 			}
 			if (found)
