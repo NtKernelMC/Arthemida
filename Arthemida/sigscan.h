@@ -24,6 +24,7 @@ public:
 			bool found = true;
 			for (DWORD j = 0; j < patternLength; j++)
 			{
+				if ((DWORD)(base + i + j) > (DWORD)mInfo.SizeOfImage) continue;
 				found &= mask[j] == '?' || pattern[j] == *(char*)(base + i + j);
 			}
 			if (found)

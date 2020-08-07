@@ -17,7 +17,7 @@ void __stdcall ART_LIB::ArtemisLibrary::HookScanner(ArtemisConfig* cfg)
 				CHAR szFileName[MAX_PATH + 1]; GetModuleFileNameA((HMODULE)it.first, szFileName, MAX_PATH + 1);
 				std::string NameOfDLL = Utils::GetDllName(szFileName);
 				DWORD scanAddr = SigScan::FindPattern(NameOfDLL.c_str(),
-					std::get<0>(PatternPair.second).c_str(), std::get<1>(PatternPair.second).c_str());
+				std::get<0>(PatternPair.second).c_str(), std::get<1>(PatternPair.second).c_str());
 				if (scanAddr != NULL && !Utils::IsVecContain(cfg->ExcludedPatterns, it.first))
 				{
 					MEMORY_BASIC_INFORMATION mme{ 0 }; ARTEMIS_DATA data;
