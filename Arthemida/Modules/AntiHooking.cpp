@@ -6,10 +6,9 @@ void __stdcall ART_LIB::ArtemisLibrary::HookScanner(ArtemisConfig* cfg)
 	if (cfg->callback == nullptr) return;
 	if (cfg->ProtectedFunctionPatterns.empty()) return;
 
-	std::map<LPVOID, DWORD> NewModuleMap = Utils::BuildModuledMemoryMap();
-
 	while (true) 
 	{
+		std::map<LPVOID, DWORD> NewModuleMap = Utils::BuildModuledMemoryMap();
 		for (const auto& PatternPair : cfg->ProtectedFunctionPatterns)
 		{
 			for (const auto& it : NewModuleMap)
