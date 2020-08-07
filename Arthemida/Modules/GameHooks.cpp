@@ -54,7 +54,8 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 	if (!HooksList.empty()) HooksList.clear();
 	if (cfg->DetectReturnAddresses) // если указана опция античита проверять адреса возвратов то ставим гейм-хуки
 	{
-		auto AddEventHandlerHook = []() -> void
+		bool HookIntegrity = true;
+		auto AddEventHandlerHook = [&HookIntegrity]() -> void
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x85\xF6\x75\x06\x89\x35\x00\x00\x00\x00\x8B\x00\x00\x00\x00\x00\x56\xE8\x00\x00\x00\x00\x85\xC0\x74\x29" };
 			const char mask[] = { "xxxxxxxxxxxxxxxxxx?????xx????xxxx" };
@@ -67,14 +68,17 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler Hook installed!\n");
 #endif
 			}
+			else {
+				HookIntegrity = false;
 #ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler - Can`t find sig.\n");
+				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::AddEventHandler - Can`t find sig.\n");
 #endif
+			}
 		};
 		AddEventHandlerHook(); // Используется читерами для отключения клиентских событий
 		
 		
-		auto ElementDataHook = []() -> void
+		auto ElementDataHook = [&HookIntegrity]() -> void
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x81\xEC\xB4\x00\x00\x00\xA1\x00\x00\x00\x00\x33\xC5\x89\x45\xF0\x56" };
 			const char mask[] = { "xxxxxx????xxxxxxxxxxxxxx????xxxxxx" };
@@ -87,9 +91,12 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData Hook installed!\n");
 #endif
 			}
+			else {
+				HookIntegrity = false;
 #ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
+				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::SetCustomData - Can`t find sig.\n");
 #endif
+			}
 
 			const char pattern2[] = { "\x55\x8B\xEC\x53\x8A\x5D\x0C" };
 			const char mask2[] = { "xxxxxxx" };
@@ -102,14 +109,17 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData Hook installed!\n");
 #endif
 			}
+			else {
+				HookIntegrity = false;
 #ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData - Can`t find sig.\n");
+				Utils::LogInFile(ARTEMIS_LOG, "CClientEntity::GetCustomData - Can`t find sig.\n");
 #endif
+			}
 		};
 		ElementDataHook(); // Используется читерами для получения списка элемент дат в луа скриптах (setElementData/getElementData)
 		
 		
-		auto InstallLuaHook = []()
+		auto InstallLuaHook = [&HookIntegrity]()
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\xFF\x36\xFF\x37\xE8\x00\x00\x00\x00\x83\xC4\x08\x84\xC0\x74\x0C\x83\x07\x03\xB0\x01\x83\x06\xFD\x5F\x5E\x5D\xC3" };
 			const char mask[] = { "xxxxxxxxxxxxxxxx????xxxxxxxxxxxxxxxxxxx" };
@@ -122,14 +132,17 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 				Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Hook installed!\n");
 #endif
 			}
+			else {
+				HookIntegrity = false;
 #ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Can`t find sig.\n");
+				Utils::LogInFile(ARTEMIS_LOG, "CLuaShared::CheckUTF8BOMAndUpdate Can`t find sig.\n");
 #endif
+			}
 		};
 		InstallLuaHook(); // Используется читерами для инжекта lua скриптов в самой новой версии FireFest мультичита
 		
 		
-		auto InstallServerEventsHook = []()
+		auto InstallServerEventsHook = [&HookIntegrity]()
 		{
 			const char pattern[] = { "\x55\x8B\xEC\x51\x53\x56\x57\x8B\x7D\x08\x85" };
 			const char mask[] = { "xxxxxxxxxxx" };
@@ -142,12 +155,24 @@ bool __stdcall GameHooks::InstallGameHooks(ART_LIB::ArtemisLibrary::ArtemisConfi
 				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Hook installed!\n");
 #endif
 			}
+			else {
+				HookIntegrity = false;
 #ifdef ARTEMIS_DEBUG
-			else Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Can`t find sig.\n");
+				Utils::LogInFile(ARTEMIS_LOG, "CStaticFunctionDefinitions::TriggerServerEvent Can`t find sig.\n");
 #endif
+			}
 		};
 		InstallServerEventsHook(); // Используется читерами для получения списка серверных событий
+
+		// Если одна из сигнатур не может быть найдена (это может быть спровоцировано тем, что кто-то уже установил туда хук до нас), вызвать колбек и выйти из функции
+		if (HookIntegrity == false) {
+			ART_LIB::ArtemisLibrary::ARTEMIS_DATA data;
+			data.type = ART_LIB::ArtemisLibrary::DetectionType::ART_SIGNATURES_MODIFIED;
+			cfg->callback(&data);
+			return false;
+		}
 	}
+	
 	// включаем все наши игровые хуки 
 	MH_EnableHook(MH_ALL_HOOKS);
 	if (cfg->DetectMemoryPatch) // запускаем наш сканнер для защиты хуков от их снятия
