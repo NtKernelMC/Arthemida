@@ -180,16 +180,11 @@ void __stdcall GameHooks::MemoryGuardScanner(ART_LIB::ArtemisLibrary::ArtemisCon
 			DWORD_PTR DestinationAddr = ReverseDelta((DWORD_PTR)it.second, Delta, 5);
 			if (*(BYTE*)it.second != 0xE9 || (*(BYTE*)it.second == 0xE9 && DestinationAddr != (DWORD)it.first))
 			{
-				typedef DWORD(__stdcall* LPFN_GetMappedFileNameA)(HANDLE hProcess, LPVOID lpv, LPCSTR lpFilename, DWORD nSize);
-				LPFN_GetMappedFileNameA g_GetMappedFileNameA = nullptr; HMODULE hPsapi = LoadLibraryA("psapi.dll");
-				g_GetMappedFileNameA = (LPFN_GetMappedFileNameA)GetProcAddress(hPsapi, "GetMappedFileNameA");
-				char MappedName[256]; memset(MappedName, 0, sizeof(MappedName));
-				g_GetMappedFileNameA(GetCurrentProcess(), it.second, MappedName, sizeof(MappedName));
-				if (strlen(MappedName) > 4 && !Utils::IsVecContain(cfg->ExcludedPatches, it.second))
+				if (!Utils::IsVecContain(cfg->ExcludedPatches, it.second))
 				{
 					ArtemisLibrary::ARTEMIS_DATA data; data.baseAddr = it.second;
 					data.MemoryRights = PAGE_EXECUTE_READWRITE; data.regionSize = 0x5;
-					data.dllName = Utils::GetDllName(MappedName); data.dllPath = MappedName;
+					data.dllName = "client.dll"; data.dllPath = "MTA\\mods\\deadmatch\\client.dll";
 					data.type = ArtemisLibrary::DetectionType::ART_MEMORY_CHANGED;
 					cfg->callback(&data); cfg->ExcludedPatches.push_back(it.second);
 				}
