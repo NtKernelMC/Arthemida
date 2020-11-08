@@ -1,7 +1,7 @@
 ﻿/*
     Artemis Library for MTA Province
 	Target Platform: Win x86-64
-	Module by holmes0
+	Module by NtKernelMC & holmes0
 
 	<TASK> TODO:
 	Первый этап >>>
